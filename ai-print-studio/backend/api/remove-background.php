@@ -67,14 +67,40 @@ curl_close($ch);
 // ----------------------
 // MANEJO RESPUESTA
 // ----------------------
-if ($httpCode === 200) {
+
+// Validar si la respuesta es JSON (error)
+$jsonResponse = json_decode($response, true);
+if ($jsonResponse && isset($jsonResponse['errors'])) {
+    error_log("Remove.bg Error JSON - HTTP Code: $httpCode, Errors: " . json_encode($jsonResponse['errors']));
+    echo json_encode([
+        'error' => 'Remove.bg rechazó la imagen',
+        'detalle' => $jsonResponse['errors'][0]['title'] ?? 'Error desconocido',
+        'httpCode' => $httpCode
+    ]);
+    exit;
+}
+
+// Validar que sea PNG (primeros 4 bytes)
+$pngSignature = substr($response, 0, 4);
+if ($pngSignature !== "\x89PNG") {
+    error_log("Remove.bg no devolvió PNG válido - HTTP Code: $httpCode, First bytes: " . bin2hex($pngSignature));
+    echo json_encode([
+        'error' => 'Remove.bg devolvió respuesta inválida',
+        'detalle' => 'Primeros bytes: ' . bin2hex($pngSignature),
+        'httpCode' => $httpCode
+    ]);
+    exit;
+}
+
+// Guardar PNG válido
+if ($httpCode === 200 && strlen($response) > 100) {
     $fileName = "no-bg_" . time() . ".png";
     $filePath = $uploadDir . $fileName;
 
     file_put_contents($filePath, $response);
 
-    // URL pública (ajustar según tu server)
-    $publicUrl = "http://localhost/ai-print-studio/backend/uploads/" . $fileName;
+    // URL pública
+    $publicUrl = "http://ai-print-studio.local/backend/uploads/" . $fileName;
 
     echo json_encode([
         'imagen_url' => $publicUrl
@@ -82,6 +108,7 @@ if ($httpCode === 200) {
 } else {
     echo json_encode([
         'error' => 'Error al remover fondo',
-        'detalle' => $response
+        'httpCode' => $httpCode,
+        'responseSize' => strlen($response)
     ]);
 }

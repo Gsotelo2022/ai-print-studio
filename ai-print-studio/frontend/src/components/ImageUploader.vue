@@ -1,6 +1,6 @@
 <template>
   <div class="uploader">
-    <h2>1️⃣ Subí tu imagen</h2>
+    <h2>1️⃣ Tu imagen</h2>
 
     <!-- Input file -->
     <input 
@@ -69,12 +69,18 @@ async function removeBackground() {
   formData.append('image', file.value)
 
   try {
-    const res = await fetch('http://localhost/ai-print-studio/backend/api/remove-background.php', {
+    const res = await fetch('http://ai-print-studio.local/backend/api/remove-background.php', {
       method: 'POST',
       body: formData
     })
 
     const data = await res.json()
+
+    if (data.error) {
+      console.error('Error del servidor:', data)
+      alert(`Error: ${data.error}\n${data.detalle || ''}`)
+      return
+    }
 
     preview.value = data.imagen_url
 
@@ -85,7 +91,7 @@ async function removeBackground() {
 
   } catch (error) {
     console.error('Error:', error)
-    alert('Error al procesar la imagen')
+    alert('Error al conectar con el servidor')
   } finally {
     loading.value = false
   }
@@ -99,10 +105,53 @@ function openFile() {
 </script>
 
 <style scoped>
+:root {
+  --color-primary: #06b6d4;
+  --color-primary-dark: #0b7285;
+  --color-surface: #0f1724;
+  --color-accent: #ffd54f;
+  --color-secondary: #ffd54f;
+  --color-text: #e6eef8;
+}
+
 .uploader {
   display: flex;
   flex-direction: column;
   gap: 15px;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  border: 2px solid var(--color-primary);
+  padding: 12px 24px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.btn-variant {
+  background-color: var(--color-surface);
+  color: white;
+  border: 2px solid white;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.btn-variant:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: white;
 }
 
 .preview-container {
@@ -117,5 +166,6 @@ function openFile() {
 .actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 </style>

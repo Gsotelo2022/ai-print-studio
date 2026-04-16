@@ -5,24 +5,28 @@
    colores azules, bordes redondeados, estilo limpio.
 */
 
+/* --- Importar fuentes de Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap');
+
 /* --- Variables CSS (Design Tokens) --- */
 :root {
-  --color-primary: #1a5fb4;
-  --color-primary-dark: #144a8a;
-  --color-primary-light: #3a7fd5;
-  --color-accent: #2ec27e;
-  --color-bg: #e8f0fe;
-  --color-surface: #ffffff;
-  --color-text: #1a1a2e;
-  --color-text-secondary: #555;
-  --color-border: #c0d4f0;
-  --color-error: #e74c3c;
+  /* Modo nocturno: paleta oscura basada en el logo */
+  --color-primary: #06b6d4;       /* teal/cian para acentos */
+  --color-primary-dark: #0b7285;
+  --color-primary-light: #67e8f9;
+  --color-accent: #ffd54f;        /* amarillo para acentos */
+  --color-bg: #071226;            /* fondo general oscuro */
+  --color-surface: #0f1724;       /* superficies (cards, navbar) */
+  --color-text: #e6eef8;          /* texto principal claro */
+  --color-text-secondary: #9aa6b2;/* texto secundario */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-error: #ff6b6b;
   --color-success: #27ae60;
   --color-warning: #f39c12;
   --radius: 12px;
   --radius-sm: 8px;
-  --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+  --shadow-lg: 0 10px 40px rgba(2, 6, 23, 0.7);
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
@@ -39,6 +43,26 @@ body {
   color: var(--color-text);
   line-height: 1.6;
   min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Gota de agua - Logo de fondo fijo (pantalla completa, centrado) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('./logo-prendete-rock2.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  /* un poco más visible que antes */
+  opacity: 0.40;
+  pointer-events: none;
+  z-index: 0;
+  transform: translateZ(0);
 }
 
 /* --- Layout principal --- */
@@ -49,25 +73,44 @@ body {
 }
 
 .app-header {
-  text-align: center;
-  padding: 30px 0 20px;
+  text-align: left;
+  padding: 40px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   color: white;
   border-radius: var(--radius);
   margin-bottom: 24px;
+  position: relative;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .app-title {
-  font-size: 2.2rem;
-  font-weight: 800;
-  letter-spacing: 2px;
+  font-family: 'Bebas Neue', 'Righteous', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 400;
+  letter-spacing: 4px;
   text-transform: uppercase;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .app-subtitle {
-  font-size: 1rem;
+  font-size: 0.95rem;
   opacity: 0.85;
-  margin-top: 4px;
+  margin: 0;
   font-style: italic;
 }
 
@@ -259,6 +302,11 @@ body {
 .btn:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-choice:hover {
+  color: white !important;
 }
 
 .btn:disabled {
@@ -687,11 +735,13 @@ body {
 /* --- Footer --- */
 .app-footer {
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 24px;
-  padding: 20px;
+  gap: 12px;
+  padding: 2px 8px; /* 2px arriba/abajo según pedido */
   margin-top: 24px;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
+  line-height: 1;
   color: var(--color-text-secondary);
 }
 
@@ -709,8 +759,17 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .app-header {
+    padding: 30px 15px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: 0;
+  }
+
   .app-title {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
   }
 
   .steps-indicator {

@@ -184,7 +184,7 @@ async function pagar() {
     loadingPago.value = true
     errorPago.value = null
 
-    const res = await fetch('http://localhost/ai-print-studio/backend/api/create-payment.php', {
+    const res = await fetch('http://ai-print-studio.local/backend/api/create-payment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -188,3 +188,173 @@ function formatPrice(price) {
   return new Intl.NumberFormat('es-AR').format(price)
 }
 </script>
+<style scoped>
+:root {
+  --color-primary: #06b6d4;
+  --color-primary-dark: #0b7285;
+  --color-surface: #0f1724;
+  --color-accent: #ffd54f;
+  --color-text: #e6eef8;
+  --color-border: rgba(255, 255, 255, 0.06);
+}
+
+.product-selector {
+  padding: 20px 0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.4rem;
+  margin-bottom: 24px;
+  color: var(--color-text);
+}
+
+.step-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.product-card:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(6, 182, 212, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+}
+
+.product-card.selected {
+  border-color: var(--color-primary);
+  background-color: rgba(6, 182, 212, 0.12);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+}
+
+.product-icon {
+  font-size: 2.5rem;
+}
+
+.product-name {
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.product-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.variants-panel {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.variants-panel h3 {
+  color: var(--color-text);
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  color: var(--color-text);
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.variant-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.variant-options button {
+  background-color: var(--color-surface);
+  color: white;
+  border: 2px solid white;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.variant-options button:hover {
+  border-color: white;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quantity-display {
+  min-width: 40px;
+  text-align: center;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.price-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(6, 182, 212, 0.08);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  border: 1px solid var(--color-primary);
+}
+
+.price-label {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.price-value {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+</style>

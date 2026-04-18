@@ -3,52 +3,78 @@
     <!-- Header Navbar -->
     <header class="navbar">
       <div class="navbar-container">
-        <div class="logo-section">
+        <div class="logo-section" @click="openHome">
           <div class="logo"><img src="./assets/logo-prendete-rock.jpg" alt="Logo"></div>
           <span class="brand">Prendete Rock</span>
         </div>
         <nav class="nav-menu">
-          <a href="#" class="nav-link active">Inicio</a>
-          <a href="#" class="nav-link">Crear</a>
-          <a href="#" class="nav-link">Mis diseños</a>
+          <a href="#" @click.prevent="openHome" class="nav-link">Home</a>
+          <!-- Home: sin usuario logueado -->
+          <template v-if="!userLogged">
+            <a href="#" @click.prevent="openRegister" class="nav-link">Registrarme</a>
+            <a href="#" @click.prevent="openLogin" class="nav-link">Ingresar</a>
+          </template>
+          
+          <!-- Cliente logueado -->
+          <template v-if="userLogged && userType === 'cliente'">
+            <a href="#" class="nav-link">Crear</a>
+            <a href="#" class="nav-link">Mis Diseños</a>
+            <a href="#" class="nav-link">Cerrar Sesión</a>
+          </template>
+          
+          <!-- Admin logueado -->
+          <template v-if="userLogged && userType === 'admin'">
+            <a href="#" class="nav-link">Dashboard</a>
+            <a href="#" class="nav-link">Pedidos</a>
+            <a href="#" class="nav-link">Productos</a>
+            <a href="#" class="nav-link">Clientes</a>
+            <a href="#" class="nav-link">Cerrar Sesión</a>
+          </template>
         </nav>
-        <!-- <div class="nav-actions">
-          <button class="icon-btn">🌙</button>
-          <button class="icon-btn">👤</button>
-        </div> -->
       </div>
     </header>
 
     <main class="app-main">
+      <!-- PASO 0: REGISTRO -->
+      <section v-if="showRegistrationForm" class="workflow-section">
+        <CreateUser
+          @user-created="onUserCreated"
+          @go-to-login="handleGoToLogin"
+        />
+      </section>
+
+      <!-- LOGIN -->
+      <section v-if="showLoginForm" class="workflow-section">
+        <Login
+          @login-success="onLoginSuccess"
+          @go-to-register="openRegister"
+          @forgot-password="handleForgotPassword"
+        />
+      </section>
+
       <!-- PASO 0: HERO SECTION -->
-      <section v-if="!imageSourceMode" class="hero-section">
+      <section v-if="!imageSourceMode && !showRegistrationForm && !showLoginForm" class="hero-section">
         <div class="">
           <div class="hero-content">
-            <h1 class="hero-title">Creá estampados únicos con IA</h1>
-            <p class="hero-subtitle">Subí una imagen o escribí una idea y generá diseños en segundos</p>
+            <h1 class="hero-title">Diseños Únicos a tu estilo</h1>
+            <p class="hero-subtitle">Crea tus propias estampas personalizables subiendo tus ideas e imágenes, y deja que nuestra IA te ayude a generar diseños únicos.</p>
             
             <div class="hero-buttons">
-              <button @click="imageSourceMode = 'upload'" class="btn btn-primary">
+              <!-- <button @click="imageSourceMode = 'upload'" class="btn btn-primary">
                 📁 Subir imagen
               </button>
               <button @click="imageSourceMode = 'generate'" class="btn btn-primary">
                 🤖 Generar con IA
-              </button>
+              </button> -->
             </div>
           </div>
-          
-          <!-- <div class="hero-showcase">
-            <div class="showcase-image">
-              <img src="./assets/logo-prendete-rock.jpg" alt="Showcase" />
-            </div>
-          </div> -->
         </div>
 
         <!-- marca de agua: se aplica vía CSS ::before para que quede centrada y no se recorte -->
 
         <!-- Carrusel de Ejemplos -->
         <div class="examples-section">
-          <div class="example-card" v-for="i in 4" :key="i">
+          <div class="example-card" v-for="i in 3" :key="i">
             <div class="example-placeholder"></div>
           </div>
           <button class="carousel-nav next">›</button>
@@ -57,17 +83,11 @@
 
       <!-- PASO 1B: SUBIR IMAGEN -->
       <section v-if="imageSourceMode === 'upload'" class="workflow-section">
-        <button @click="goBackToChoice" class="btn btn-back">
-          ← Volver
-        </button>
         <ImageUploader @image-generated="onImageGenerated" />
       </section>
 
       <!-- PASO 1C: GENERAR CON IA -->
       <section v-if="imageSourceMode === 'generate'" class="workflow-section">
-        <button @click="goBackToChoice" class="btn btn-back">
-          ← Volver
-        </button>
         <GenerateImage @image-generated="onImageGenerated" />
       </section>
 
@@ -111,15 +131,23 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 
 // 🔥 IMPORTANTE: cambiamos el componente
 import ImageUploader from './components/ImageUploader.vue'
+import CreateUser from './components/CreateUser.vue'
+import Login from './components/Login.vue'
 
 import ProductSelector from './components/ProductSelector.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
 import CheckoutPanel from './components/CheckoutPanel.vue'
 import GenerateImage from './components/GenerateImage.vue'
+
+// Estado de autenticación y usuario
+const userLogged = ref(false) // cambiar a true para ver diferentes vistas
+const userType = ref('cliente') // 'cliente' o 'admin'
+const showRegistrationForm = ref(false) // mostrar formulario de registro
+const showLoginForm = ref(false) // mostrar formulario de login
 
 const currentStep = ref(0)
 
@@ -132,6 +160,36 @@ const lastPrompt = ref('')
 
 const selectedProduct = ref(null)
 const orderData = ref(null)
+
+// Computed para detectar si estamos en Home (sin formularios ni modos)
+const isHome = computed(() => {
+  return (
+    !showRegistrationForm.value &&
+    !showLoginForm.value &&
+    !imageSourceMode.value
+  )
+})
+
+// Bloquear scroll también cuando se muestra el login
+const lockScroll = computed(() => {
+  // bloquear si estamos en home o en la pantalla de login
+  return isHome.value || showLoginForm.value
+})
+
+// Vigilar lockScroll y bloquear/permitir scroll en body
+watch(
+  lockScroll,
+  (val) => {
+    if (val) {
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+    }
+  },
+  { immediate: true }
+)
 
 const productos = reactive({
   camiseta: { nombre: 'Camiseta', precio: 12000, tienesTalle: true },
@@ -163,9 +221,56 @@ function onConfirmOrder(order) {
 function goBackToChoice() {
   imageSourceMode.value = null
 }
+
+function onUserCreated(userData) {
+  console.log('Usuario creado:', userData)
+  // Aquí puedes agregar la lógica para enviar los datos al backend
+  alert('Usuario registrado exitosamente')
+  showRegistrationForm.value = false
+  // Opcionalmente, puedes logear automáticamente al usuario
+  // userLogged.value = true
+}
+
+function handleGoToLogin() {
+  console.log('Ir a login')
+  showRegistrationForm.value = false
+  showLoginForm.value = true
+  // Aquí agregarás la lógica para ir a login cuando lo implementes
+}
+
+function onLoginSuccess(loginData) {
+  console.log('Login exitoso:', loginData)
+  alert('Ingreso exitoso')
+  userLogged.value = true
+  showLoginForm.value = false
+}
+
+function handleForgotPassword() {
+  // placeholder: mostrar modal o redirigir a recuperación
+  alert('Funcionalidad de recuperar contraseña aún no implementada')
+}
+
+function openRegister() {
+  showRegistrationForm.value = true
+  showLoginForm.value = false
+}
+
+function openLogin() {
+  showLoginForm.value = true
+  showRegistrationForm.value = false
+}
+
+function openHome() {
+  // volver al estado inicial: mostrar home (hero) y ocultar formularios
+  showRegistrationForm.value = false
+  showLoginForm.value = false
+  imageSourceMode.value = null
+}
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
 :root {
   /* Modo nocturno local (coherente con variables globales) */
   --color-primary: #06b6d4;
@@ -177,6 +282,7 @@ function goBackToChoice() {
   --color-border: rgba(255,255,255,0.06);
   --color-surface: #0f1724;
   --color-bg: #071226;
+  --font-display: 'Orbitron', cursive;
 }
 
 * {
@@ -189,7 +295,12 @@ function goBackToChoice() {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  /* background-color: var(--color-bg); */
+  /* Fondo con imagen proporcionada */
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
@@ -222,8 +333,10 @@ function goBackToChoice() {
   gap: 12px;
   font-weight: 700;
   font-size: 18px;
+  font-family: var(--font-display);
   color: var(--color-primary);
-  letter-spacing: -0.3px;
+  letter-spacing: 1px;
+  cursor: pointer;
 }
 
 .logo {
@@ -246,23 +359,26 @@ function goBackToChoice() {
   display: flex;
   gap: 32px;
   flex: 1;
-  justify-content: center;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .nav-link {
   text-decoration: none;
   color: var(--color-text);
   font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1px;
   transition: color 0.3s ease;
   position: relative;
 }
 
-.nav-link:hover,
-.nav-link.active {
+.nav-link:hover {
   color: var(--color-secondary);
 }
 
-.nav-link.active::after {
+.nav-link:hover::after {
   content: '';
   position: absolute;
   bottom: -8px;
@@ -325,25 +441,26 @@ function goBackToChoice() {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  width: 50%;
 }
 
 .hero-content { z-index: 2; position: relative; }
 
 
 .hero-section::before {
-  content: '';
+  /* content: '';
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
   bottom: 0;
-  /* background-image: url('./assets/logo-prendete-rock.jpg'); */
+  background-image: url('./assets/logo-prendete-rock.jpg'); 
   background-repeat: no-repeat;
   background-position: center 40px;
   background-size: 100% auto;
   opacity: 0.10;
   pointer-events: none;
-  z-index: 0;
+  z-index: 0; */
 }
 
 .hero-title {
@@ -352,7 +469,8 @@ function goBackToChoice() {
   line-height: 1.1;
   color: var(--color-primary);
   margin: 0;
-  letter-spacing: -0.5px;
+  letter-spacing: 2px;
+  font-family: var(--font-display);
 }
 
 .hero-subtitle {
@@ -360,7 +478,8 @@ function goBackToChoice() {
   color: var(--color-text-light);
   line-height: 1.6;
   margin: 0;
-  letter-spacing: 0.25px;
+  letter-spacing: 0.5px;
+  font-family: var(--font-display);
 }
 
 .hero-buttons {
@@ -471,11 +590,12 @@ function goBackToChoice() {
 /* EJEMPLOS CAROUSEL */
 .examples-section {
   display: grid;
-  grid-template-columns: repeat(4, 180px);
+  grid-template-columns: repeat(3, 180px);
   gap: 16px;
-  margin-top: 16px;
+  /* Subir el carrusel 50px respecto a la posición previa (60px -> 10px) */
+  margin-top: 10px;
   position: relative;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .example-card {
@@ -604,7 +724,7 @@ function goBackToChoice() {
 
   .examples-section {
     grid-template-columns: repeat(2, 160px);
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .nav-menu {
@@ -633,7 +753,7 @@ function goBackToChoice() {
   .examples-section {
     grid-template-columns: 1fr;
     gap: 12px;
-    justify-content: center;
+    justify-content: flex-start;
   }
 }
 </style>

@@ -47,24 +47,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Gota de agua - Logo de fondo fijo (pantalla completa, centrado) */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background-image: url('./logo-prendete-rock2.jpg');
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  /* un poco más visible que antes */
-  opacity: 0.40;
-  pointer-events: none;
-  z-index: 0;
-  transform: translateZ(0);
-}
-
 /* --- Layout principal --- */
 .app {
   max-width: 1200px;

@@ -54,6 +54,47 @@ export function useApi() {
     }
   }
 
+  // Función GET genérica
+  async function get(url) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido')
+      }
+      return result.data
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Base URL para los endpoints PHP (ajustar si correspondiere)
+  // Nuevo backend en Python (FastAPI) que corre en http://localhost:8000
+  const baseApi = 'http://localhost:8000/api'
+
+  // Funciones específicas: listar usuarios, registro y login
+  async function getUsers() {
+    return get(`${baseApi}/get-users.php`)
+  }
+
+  async function registerUser(payload) {
+    return post(`${baseApi}/create-user.php`, payload)
+  }
+
+  async function loginUser(payload) {
+    return post(`${baseApi}/login.php`, payload)
+  }
+
   // --- Funciones específicas para cada endpoint ---
 
   // Generar imagen con Stability AI
@@ -82,6 +123,10 @@ export function useApi() {
   return {
     loading,
     error,
+    get,
+    getUsers,
+    registerUser,
+    loginUser,
     generateImage,
     createOrder,
     createPayment,

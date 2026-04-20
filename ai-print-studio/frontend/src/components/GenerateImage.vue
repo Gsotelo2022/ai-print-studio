@@ -1,7 +1,9 @@
 <template>
   <div class="generator panel-box">
-
-    <h2>Generar mi imagen</h2>
+    <div class="generator-header">
+      <button @click="goBack" class="btn btn-back">← Volver</button>
+      <h2>Generar mi imagen</h2>
+    </div>
 
     <textarea
       v-model="prompt"
@@ -19,8 +21,8 @@
           Usar imagen
         </button>
 
-        <button @click="removeBackground" :disabled="loadingRemoveBg" class="btn btn-variant">
-          {{ loadingRemoveBg ? 'Procesando...' : '✂️ Quitar fondo' }}
+        <button @click="removeBackground" class="btn btn-variant">
+          ✂️ Quitar fondo
         </button>
       </div>
     </div>
@@ -31,12 +33,11 @@
 <script setup>
 import { ref } from 'vue'
 
-const emit = defineEmits(['image-generated'])
+const emit = defineEmits(['image-generated', 'go-back'])
 
 const prompt = ref('')
 const image = ref(null)
 const loading = ref(false)
-const loadingRemoveBg = ref(false)
 
 async function generate() {
 
@@ -75,40 +76,16 @@ function usarImagen() {
   })
 }
 
-async function removeBackground() {
-  if (!image.value) return
+function goBack() {
+  emit('go-back')
+}
 
-  loadingRemoveBg.value = true
-
-  try {
-    // Convertir data URL a blob
-    const response = await fetch(image.value)
-    const blob = await response.blob()
-
-    const formData = new FormData()
-    formData.append('image', blob, 'generated-image.png')
-
-    const res = await fetch('http://ai-print-studio.local/backend/api/remove-background.php', {
-      method: 'POST',
-      body: formData
-    })
-
-    const data = await res.json()
-
-    if (data.error) {
-      console.error('Error del servidor:', data)
-      alert(`Error: ${data.error}\n${data.detalle || ''}`)
-      return
-    }
-
-    image.value = data.imagen_url
-
-  } catch (error) {
-    console.error('Error:', error)
-    alert('Error al conectar con el servidor')
-  } finally {
-    loadingRemoveBg.value = false
-  }
+function removeBackground() {
+  // Emitir la imagen y el usuario podrá editarla en BackgroundRemover
+  emit('image-generated', {
+    imagen_url: image.value,
+    prompt: prompt.value
+  })
 }
 </script>
 

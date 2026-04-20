@@ -1,6 +1,9 @@
 <template>
   <div class="uploader">
-    <h2>1️⃣ Tu imagen</h2>
+    <div class="uploader-header">
+      <button @click="goBack" class="btn btn-back">← Volver</button>
+      <h2>1️⃣ Tu imagen</h2>
+    </div>
 
     <!-- Input file -->
     <input 
@@ -36,7 +39,7 @@
 <script setup>
 import { ref } from 'vue'
 
-const emit = defineEmits(['image-generated'])
+const emit = defineEmits(['image-generated', 'go-back'])
 
 const file = ref(null)
 const preview = ref(null)
@@ -51,7 +54,7 @@ function onFileChange(e) {
   preview.value = URL.createObjectURL(selected)
 }
 
-// Emitir imagen SIN IA
+// Emitir imagen (irá al BackgroundRemover después en App.vue)
 function emitImage() {
   emit('image-generated', {
     imagen_url: preview.value,
@@ -59,42 +62,18 @@ function emitImage() {
   })
 }
 
-// Llamar al backend para quitar fondo
-async function removeBackground() {
-  if (!file.value) return
+// Volver al dashboard
+function goBack() {
+  emit('go-back')
+}
 
-  loading.value = true
-
-  const formData = new FormData()
-  formData.append('image', file.value)
-
-  try {
-    const res = await fetch('http://ai-print-studio.local/backend/api/remove-background.php', {
-      method: 'POST',
-      body: formData
-    })
-
-    const data = await res.json()
-
-    if (data.error) {
-      console.error('Error del servidor:', data)
-      alert(`Error: ${data.error}\n${data.detalle || ''}`)
-      return
-    }
-
-    preview.value = data.imagen_url
-
-    emit('image-generated', {
-      imagen_url: data.imagen_url,
-      prompt: 'imagen con fondo removido'
-    })
-
-  } catch (error) {
-    console.error('Error:', error)
-    alert('Error al conectar con el servidor')
-  } finally {
-    loading.value = false
-  }
+// Opción para remover fondo ya que va al BackgroundRemover
+function removeBackground() {
+  // Emitir la imagen y el usuario podrá editarla en BackgroundRemover
+  emit('image-generated', {
+    imagen_url: preview.value,
+    prompt: 'imagen subida por usuario'
+  })
 }
 
 const fileInput = ref(null)
@@ -118,6 +97,39 @@ function openFile() {
   display: flex;
   flex-direction: column;
   gap: 15px;
+}
+
+.uploader-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.uploader-header h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 24px;
+  color: var(--color-primary);
+}
+
+.btn-back {
+  padding: 10px 16px;
+  background-color: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #e6eef8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.btn-back:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-2px);
 }
 
 .btn-primary {

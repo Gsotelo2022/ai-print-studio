@@ -20,7 +20,7 @@
 <template>
   <div class="product-selector">
     <h2 class="section-title">
-      <span class="step-badge">2</span>
+      <span class="step-badge">3</span>
       Selecciona el producto
     </h2>
 

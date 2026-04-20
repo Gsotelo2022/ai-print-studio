@@ -20,7 +20,7 @@
   <div class="checkout-panel">
     <h2 class="section-title">
       <span class="step-badge">5</span>
-      Confirma tu pedido
+      Paga o envía por WhatsApp
     </h2>
 
     <!-- Resumen del pedido -->

@@ -1,7 +1,7 @@
 <template>
   <div class="preview-panel">
     <h2 class="section-title">
-      <span class="step-badge">3</span>
+      <span class="step-badge">4</span>
       Vista previa del estampado
     </h2>
 

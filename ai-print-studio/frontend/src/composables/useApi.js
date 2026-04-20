@@ -84,15 +84,15 @@ export function useApi() {
 
   // Funciones específicas: listar usuarios, registro y login
   async function getUsers() {
-    return get(`${baseApi}/get-users.php`)
+    return get(`${baseApi}/users`)
   }
 
   async function registerUser(payload) {
-    return post(`${baseApi}/create-user.php`, payload)
+    return post(`${baseApi}/register`, payload)
   }
 
   async function loginUser(payload) {
-    return post(`${baseApi}/login.php`, payload)
+    return post(`${baseApi}/login`, payload)
   }
 
   // --- Funciones específicas para cada endpoint ---

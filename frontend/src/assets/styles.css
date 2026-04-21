@@ -1,0 +1,765 @@
+/* ============================================
+   AI Print Studio - Estilos Globales
+   ============================================
+   Diseño inspirado en el wireframe del proyecto:
+   colores azules, bordes redondeados, estilo limpio.
+*/
+
+/* --- Importar fuentes de Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap');
+
+/* --- Variables CSS (Design Tokens) --- */
+:root {
+  /* Modo nocturno: paleta oscura basada en el logo */
+  --color-primary: #06b6d4;       /* teal/cian para acentos */
+  --color-primary-dark: #0b7285;
+  --color-primary-light: #67e8f9;
+  --color-accent: #ffd54f;        /* amarillo para acentos */
+  --color-bg: #071226;            /* fondo general oscuro */
+  --color-surface: #0f1724;       /* superficies (cards, navbar) */
+  --color-text: #e6eef8;          /* texto principal claro */
+  --color-text-secondary: #9aa6b2;/* texto secundario */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-error: #ff6b6b;
+  --color-success: #27ae60;
+  --color-warning: #f39c12;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+  --shadow-lg: 0 10px 40px rgba(2, 6, 23, 0.7);
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* --- Reset básico --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* --- Layout principal --- */
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.app-header {
+  text-align: left;
+  padding: 40px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: white;
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-title {
+  font-family: 'Bebas Neue', 'Righteous', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 400;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.app-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.85;
+  margin: 0;
+  font-style: italic;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* --- Indicador de pasos --- */
+.steps-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 24px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.step.completed {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.step.active .step-number,
+.step.completed .step-number {
+  background: rgba(255, 255, 255, 0.3);
+  color: inherit;
+}
+
+/* --- Panels --- */
+.panels-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.3s;
+}
+
+.panel-active {
+  border-color: var(--color-primary);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  color: var(--color-primary-dark);
+}
+
+.step-badge {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* --- Formularios --- */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+  color: var(--color-text-secondary);
+}
+
+.prompt-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-family: var(--font);
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.prompt-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.char-count {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.input-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+}
+
+.tab {
+  padding: 8px 16px;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.tab:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.tab:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border-left: none;
+}
+
+.tab.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Botones --- */
+.btn {
+  padding: 10px 20px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-choice:hover {
+  color: white !important;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: white;
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-generate {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.btn-active {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.btn-variant {
+  min-width: 48px;
+}
+
+.btn-pay {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.2rem;
+  margin-top: 16px;
+}
+
+.btn-mercadopago {
+  background: linear-gradient(135deg, #009ee3, #007bb6);
+  border-color: #009ee3;
+}
+
+.btn-mercadopago:hover:not(:disabled) {
+  background: linear-gradient(135deg, #007bb6, #005f8f);
+  border-color: #007bb6;
+  color: white;
+}
+
+.btn-whatsapp {
+  width: 100%;
+  padding: 12px;
+  background: #25d366;
+  border-color: #25d366;
+  color: white;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.btn-whatsapp:hover:not(:disabled) {
+  background: #1da851;
+  border-color: #1da851;
+  color: white;
+}
+
+/* --- Radio buttons (estilo) --- */
+.radio-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.radio-option input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+/* --- Productos grid --- */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 8px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--color-surface);
+}
+
+.product-card:hover {
+  border-color: var(--color-primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.product-card.selected {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+.product-icon {
+  font-size: 2rem;
+}
+
+.product-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.product-price {
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* --- Variantes --- */
+.variant-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quantity-display {
+  font-size: 1.2rem;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* --- Precios --- */
+.price-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  margin: 16px 0;
+}
+
+.price-label {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.price-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.price-box {
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+
+.price-total {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  border-top: 2px solid var(--color-border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+/* --- Preview / Mockup --- */
+.preview-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.mockup-container {
+  text-align: center;
+}
+
+.mockup-product {
+  width: 200px;
+  height: 240px;
+  margin: 0 auto;
+  background: #f5f5f5;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+  position: relative;
+}
+
+.mockup-design {
+  max-width: 80%;
+  max-height: 80%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.mockup-label {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- Imagen generada --- */
+.image-preview {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.image-preview h3 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+  color: var(--color-text-secondary);
+}
+
+.generated-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  border: 2px solid var(--color-border);
+}
+
+.preview-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* --- Checkout --- */
+.checkout-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.order-summary {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.summary-item {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.summary-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+
+.summary-details {
+  flex: 1;
+}
+
+.summary-details h3 {
+  font-size: 1rem;
+}
+
+.summary-color, .summary-qty {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.summary-price {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+/* --- Payment --- */
+.payment-methods {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.payment-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.payment-icons {
+  display: flex;
+  gap: 6px;
+}
+
+.payment-badge {
+  padding: 4px 10px;
+  background: var(--color-bg);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* --- Variantes pills --- */
+.variant-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.pill {
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.pill.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* --- Alertas --- */
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+
+.alert-error {
+  background: #fdeaea;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.alert-success {
+  background: #eafde7;
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.alert-warning {
+  background: #fef9e7;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+/* --- Advanced options --- */
+.advanced-options {
+  margin-bottom: 16px;
+}
+
+.advanced-options summary {
+  cursor: pointer;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 0;
+}
+
+.size-options {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.shipping-info {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+}
+
+/* --- Footer --- */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 2px 8px; /* 2px arriba/abajo según pedido */
+  margin-top: 24px;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .panels-container {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .app-header {
+    padding: 30px 15px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .app-title {
+    font-size: 1.8rem;
+  }
+
+  .steps-indicator {
+    gap: 4px;
+  }
+
+  .step {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+}

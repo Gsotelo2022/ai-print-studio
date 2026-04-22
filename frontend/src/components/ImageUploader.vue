@@ -24,13 +24,9 @@
     </div>
 
     <!-- Acciones -->
-    <div v-if="preview" class="actions ">
-      <button @click="emitImage" class="btn btn-variant">
-        Usar imagen
-      </button>
-
-      <button @click="removeBackground" :disabled="loading" class="btn btn-variant">
-        {{ loading ? 'Procesando...' : 'Quitar fondo con IA' }}
+    <div v-if="preview" class="actions">
+      <button @click="emitImage" class="btn btn-primary">
+        ✅ Usar imagen
       </button>
     </div>
   </div>
@@ -65,15 +61,6 @@ function emitImage() {
 // Volver al dashboard
 function goBack() {
   emit('go-back')
-}
-
-// Opción para remover fondo ya que va al BackgroundRemover
-function removeBackground() {
-  // Emitir la imagen y el usuario podrá editarla en BackgroundRemover
-  emit('image-generated', {
-    imagen_url: preview.value,
-    prompt: 'imagen subida por usuario'
-  })
 }
 
 const fileInput = ref(null)

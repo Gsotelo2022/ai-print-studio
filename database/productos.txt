@@ -1,0 +1,117 @@
+-- =========================
+-- BUZOS
+-- =========================
+insert into Productos (Detalle,Color,talle) values('Buzo','Blanca','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Blanca','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Blanca','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Blanca','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Blanca','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Blanca','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Buzo','Negra','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Negra','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Negra','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Negra','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Negra','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Negra','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Buzo','Roja','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Roja','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Roja','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Roja','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Roja','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Roja','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Buzo','Azul','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Azul','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Azul','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Azul','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Azul','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Azul','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Buzo','Verde','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Verde','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Verde','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Verde','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Verde','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Verde','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Buzo','Gris','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Gris','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Gris','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Gris','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Gris','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Gris','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Buzo','Amarilla','S');
+insert into Productos (Detalle,Color,talle) values('Buzo','Amarilla','M');
+insert into Productos (Detalle,Color,talle) values('Buzo','Amarilla','L');
+insert into Productos (Detalle,Color,talle) values('Buzo','Amarilla','X');
+insert into Productos (Detalle,Color,talle) values('Buzo','Amarilla','XL');
+insert into Productos (Detalle,Color,talle) values('Buzo','Amarilla','XXL');
+
+-- =========================
+-- MUSCULOSAS
+-- =========================
+insert into Productos (Detalle,Color,talle) values('Musculosa','Blanca','S');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Blanca','M');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Blanca','L');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Blanca','X');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Blanca','XL');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Blanca','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Musculosa','Negra','S');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Negra','M');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Negra','L');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Negra','X');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Negra','XL');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Negra','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Musculosa','Roja','S');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Roja','M');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Roja','L');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Roja','X');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Roja','XL');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Roja','XXL');
+
+insert into Productos (Detalle,Color,talle) values('Musculosa','Azul','S');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Azul','M');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Azul','L');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Azul','X');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Azul','XL');
+insert into Productos (Detalle,Color,talle) values('Musculosa','Azul','XXL');
+
+-- =========================
+-- GORRAS
+-- =========================
+insert into Productos (Detalle,Color,talle) values('Gorra','Blanca','S');
+insert into Productos (Detalle,Color,talle) values('Gorra','Negra','S');
+insert into Productos (Detalle,Color,talle) values('Gorra','Roja','S');
+insert into Productos (Detalle,Color,talle) values('Gorra','Azul','S');
+insert into Productos (Detalle,Color,talle) values('Gorra','Verde','S');
+insert into Productos (Detalle,Color,talle) values('Gorra','Gris','S');
+
+-- =========================
+-- TAZAS (SIN TALLE)
+-- =========================
+insert into Productos (Detalle,Color,talle) values('Taza','Blanca',NULL);
+insert into Productos (Detalle,Color,talle) values('Taza','Negra',NULL);
+insert into Productos (Detalle,Color,talle) values('Taza','Roja',NULL);
+insert into Productos (Detalle,Color,talle) values('Taza','Azul',NULL);
+insert into Productos (Detalle,Color,talle) values('Taza','Verde',NULL);
+
+-- =========================
+-- ALMOHADAS (SIN TALLE)
+-- =========================
+insert into Productos (Detalle,Color,talle) values('Almohada','Blanca',NULL);
+insert into Productos (Detalle,Color,talle) values('Almohada','Negra',NULL);
+insert into Productos (Detalle,Color,talle) values('Almohada','Gris',NULL);
+insert into Productos (Detalle,Color,talle) values('Almohada','Azul',NULL);
+
+-- =========================
+-- MOCHILAS (SIN TALLE)
+-- =========================
+insert into Productos (Detalle,Color,talle) values('Mochila','Negra',NULL);
+insert into Productos (Detalle,Color,talle) values('Mochila','Gris',NULL);
+insert into Productos (Detalle,Color,talle) values('Mochila','Azul',NULL);
+insert into Productos (Detalle,Color,talle) values('Mochila','Verde',NULL);

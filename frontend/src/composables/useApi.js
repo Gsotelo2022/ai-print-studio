@@ -37,6 +37,21 @@ export function useApi() {
       // (igual que json_decode en PHP)
       const result = await response.json()
 
+      // Verificar si la respuesta es un error HTTP
+      if (!response.ok) {
+        // Manejar errores específicos
+        if (response.status === 401) {
+          throw new Error(result.detail?.error || 'Credenciales inválidas. Verifica email y contraseña.')
+        }
+        if (response.status === 409) {
+          throw new Error(result.detail?.error || 'Este email ya está registrado.')
+        }
+        if (response.status === 500) {
+          throw new Error(result.detail?.error || 'Error del servidor. Intenta más tarde.')
+        }
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+
       // Nuestro backend siempre devuelve { success: true/false, ... }
       if (!result.success) {
         throw new Error(result.error || 'Error desconocido')
@@ -66,6 +81,12 @@ export function useApi() {
       })
 
       const result = await response.json()
+      
+      // Verificar si la respuesta es un error HTTP
+      if (!response.ok) {
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+      
       if (!result.success) {
         throw new Error(result.error || 'Error desconocido')
       }
@@ -114,7 +135,7 @@ export function useApi() {
 
   // Crear pago con MercadoPago
   async function createPayment(orderId) {
-    return post('/api/create-payment.php', {
+    return post('http://localhost:8080/api/create-payment.php', {
       order_id: orderId,
     })
   }

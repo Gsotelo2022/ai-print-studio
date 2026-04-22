@@ -117,6 +117,7 @@
           :imagenUrl="generatedImage"
           @image-processed="onImageProcessed"
           @skip-editing="onSkipEditing"
+          @go-back="onBackgroundRemoverGoBack"
         />
       </section>
 
@@ -124,7 +125,10 @@
       <section v-if="generatedImage && !selectedProduct && !showBackgroundRemover" class="workflow-section">
         <ProductSelector
           :productos="productos"
+          :loading="productosLoading"
+          :loaded="productosLoaded"
           @product-selected="onProductSelected"
+          @go-back="onProductSelectorGoBack"
         />
       </section>
 
@@ -134,7 +138,9 @@
           :imagen-url="generatedImage"
           :producto="selectedProduct"
           :prompt="lastPrompt"
+          :user-id="currentUser?.id_usuario"
           @confirm-order="onConfirmOrder"
+          @go-back="onPreviewPanelGoBack"
         />
       </section>
 
@@ -160,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 
 import ImageUploader from './components/ImageUploader.vue'
 import CreateUser from './components/CreateUser.vue'
@@ -192,56 +198,69 @@ const showBackgroundRemover = ref(false) // mostrar editor de fondo
 const selectedProduct = ref(null)
 const orderData = ref(null)
 
-// Computed para detectar si estamos en Home (sin formularios ni modos)
-const isHome = computed(() => {
-  return (
-    !showRegistrationForm.value &&
-    !showLoginForm.value &&
-    !imageSourceMode.value &&
-    !userLogged.value // Si está logueado, no está en "home"
-  )
-})
+// ============================
+// PRODUCTOS - Dinámicos del Agente IA
+// ============================
+const productos = reactive({})
+const productosDelAgente = ref([]) // estructura bruta del agente
+const productosLoading = ref(false) // Estado de carga
+const productosLoaded = ref(false)  // Si ya se cargaron
 
-// Computed para detectar si estamos en Dashboard (user logueado sin modos activos)
-const isDashboard = computed(() => {
-  return (
-    userLogged.value &&
-    !imageSourceMode.value &&
-    !generatedImage.value
-  )
-})
+async function cargarProductosDelAgente() {
+  if (productosLoaded.value) {
+    console.log('✓ Productos ya cargados, usando caché')
+    return
+  }
+  
+  productosLoading.value = true
+  console.log('🔄 Cargando productos del agente IA...')
+  try {
+    const response = await fetch('http://localhost:5001/productos-ia')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    
+    const data = await response.json()
+    productosDelAgente.value = data
+    
+    // Transformar estructura del agente a estructura de la app
+    // Agente devuelve: [{ producto: "Remera", talles: [...], colores: [...] }, ...]
+    // App espera: { remera: { nombre: "Remera", talles: [...], colores: [...] }, ... }
+    
+    data.forEach(item => {
+      const key = item.producto.toLowerCase()
+      productos[key] = {
+        nombre: item.producto,
+        talles: item.talles || [],
+        colores: item.colores || [],
+        precio: 12000, // TODO: obtener del agente o BD
+        tienesTalle: (item.talles && item.talles.length > 0)
+      }
+    })
+    
+    console.log('✓ Productos cargados del agente:', productos)
+    productosLoaded.value = true
+  } catch (error) {
+    console.log('⚠ Error cargando productos del agente, usando valores por defecto:', error.message)
+    
+    // Fallback: mantener productos hardcodeados si el agente no funciona
+    Object.assign(productos, {
+      camiseta: { nombre: 'Camiseta', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro', 'Gris', 'Azul'], precio: 12000, tienesTalle: true },
+      taza:     { nombre: 'Taza',     talles: [], colores: ['Blanco', 'Negro'], precio: 8000,  tienesTalle: false },
+      sudadera: { nombre: 'Sudadera', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro'], precio: 18000, tienesTalle: true },
+      cojin:    { nombre: 'Cojín',    talles: [], colores: ['Blanco', 'Negro'], precio: 10000, tienesTalle: false },
+      mochila:  { nombre: 'Mochila',  talles: [], colores: ['Negro', 'Gris', 'Azul'], precio: 15000, tienesTalle: false },
+      gorra:    { nombre: 'Gorra',    talles: [], colores: ['Blanco', 'Negro'], precio: 9000,  tienesTalle: false },
+    })
+    productosLoaded.value = true
+  } finally {
+    productosLoading.value = false
+  }
+}
 
-// Bloquear scroll también cuando se muestra el login
-const lockScroll = computed(() => {
-  // bloquear si estamos en home, login, o en el dashboard
-  return isHome.value || showLoginForm.value || isDashboard.value
-})
-
-// Vigilar lockScroll y bloquear/permitir scroll en body
-watch(
-  lockScroll,
-  (val) => {
-    if (val) {
-      document.documentElement.style.overflow = 'hidden'
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.documentElement.style.overflow = ''
-      document.body.style.overflow = ''
-    }
-  },
-  { immediate: true }
-)
-
-const productos = reactive({
-  camiseta: { nombre: 'Camiseta', precio: 12000, tienesTalle: true },
-  taza:     { nombre: 'Taza',     precio: 8000,  tienesTalle: false },
-  sudadera: { nombre: 'Sudadera', precio: 18000, tienesTalle: true },
-  /*cojin:    { nombre: 'Cojín',    precio: 10000, tienesTalle: false },
-  mochila:  { nombre: 'Mochila',  precio: 15000, tienesTalle: false },
-  gorra:    { nombre: 'Gorra',    precio: 9000,  tienesTalle: false },*/
-})
-
-// EVENTOS
+// FLUJO ANTERIOR: Cargar productos al montar el componente
+// onMounted(() => {
+//   cargarProductosDelAgente()
+// })
+// FLUJO NUEVO: Cargar productos solo después del login (ver onLoginSuccess)
 
 function onImageGenerated({ imagen_url, prompt }) {
   generatedImage.value = imagen_url
@@ -263,14 +282,44 @@ function onSkipEditing() {
   currentStep.value = 1
 }
 
+function onBackgroundRemoverGoBack() {
+  // Volver desde BackgroundRemover al inicio (a elegir upload/generate)
+  generatedImage.value = null
+  lastPrompt.value = ''
+  showBackgroundRemover.value = false
+  imageSourceMode.value = null
+}
+
 function onProductSelected(product) {
   selectedProduct.value = product
   currentStep.value = 2
 }
 
-function onConfirmOrder(order) {
-  orderData.value = order
-  currentStep.value = 3
+function onConfirmOrder(newOrderData) {
+  // PreviewPanel ya creó el pedido en la BD
+  // newOrderData trae: { order_id, producto, precio_total, cantidad, etc }
+  console.log('✅ Pedido confirmado:', newOrderData)
+  
+  // Guardar los datos del pedido en la ref
+  orderData.value = {
+    order_id: newOrderData.order_id,
+    precio_total: newOrderData.precio_total,
+    cantidad: newOrderData.cantidad,
+    producto_nombre: newOrderData.producto
+  }
+  
+  currentStep.value = 4
+}
+
+function onProductSelectorGoBack() {
+  // Volver desde ProductSelector a BackgroundRemover
+  selectedProduct.value = null
+  showBackgroundRemover.value = true
+}
+
+function onPreviewPanelGoBack() {
+  // Volver desde PreviewPanel a ProductSelector
+  selectedProduct.value = null
 }
 
 function goBackToChoice() {
@@ -302,6 +351,9 @@ function onLoginSuccess(loginData) {
   generatedImage.value = null
   selectedProduct.value = null
   orderData.value = null
+  
+  // NUEVO: Cargar productos del agente después del login
+  cargarProductosDelAgente()
 }
 
 function handleForgotPassword() {

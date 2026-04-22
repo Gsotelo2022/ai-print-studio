@@ -82,7 +82,6 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useApi } from '../composables/useApi.js'
 
 const props = defineProps({
   order:     { type: Object, required: true },
@@ -90,8 +89,8 @@ const props = defineProps({
   producto:  { type: Object, required: true },
 })
 
-const { loading, error, createPayment } = useApi()
-
+const loading = ref(false)
+const error = ref(null)
 const paymentStatus = ref(null)
 
 // --- Verificar si el usuario vuelve de MercadoPago ---
@@ -124,28 +123,68 @@ const paymentStatusClass = computed(() => {
 
 // --- Pagar con MercadoPago ---
 async function pay() {
+  if (!props.order.order_id) {
+    console.error('❌ Error: No hay order_id')
+    return
+  }
+
   try {
     // Llamar al backend para crear preferencia en MercadoPago
-    const data = await createPayment(props.order.order_id)
+    const response = await fetch('http://localhost:8080/api/create-payment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: props.order.order_id,
+        producto: props.producto.nombre,
+        precio: props.order.precio_total,
+        cantidad: props.order.cantidad
+      })
+    })
+
+    const data = await response.json()
 
     // Redirigir al usuario a MercadoPago
-    // data.payment_url es el init_point de MercadoPago
-    // En testing, usar data.sandbox_url
-    const payUrl = data.sandbox_url || data.payment_url
+    // En testing usar sandbox_url, en producción usar init_point
+    const payUrl = data.sandbox_url || data.payment_url || data.init_point
+    if (!payUrl) {
+      throw new Error('No se recibió URL de pago de MercadoPago')
+    }
     window.location.href = payUrl
 
   } catch (err) {
     console.error('Error creando pago:', err)
+    error.value = err.message
   }
 }
 
 function sendWhatsApp() {
-  const numero = '5491134696400' 
-  const text = `Hola! Quiero confirmar mi pedido #${props.order.order_id}\n` +
-    `${props.producto.nombre} x${props.producto.cantidad}\n` +
-    `Total: $${formatPrice(props.order.precio_total)}`
-    const url = `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`
-  window.open(url, '_blank')
+  const numero = '5491134696400'
+  const numeroPedido = props.order?.order_id || props.order?.id_pedido || 'PENDIENTE'
+  const cantidad = props.producto?.cantidad || 1
+  const producto = props.producto?.nombre || 'Producto'
+  const color = props.producto?.color || 'N/A'
+  const talle = props.producto?.talle || 'Único'
+  const precioTotal = props.order?.precio_total || props.producto?.precioTotal || 0
+  
+  const text = `Hola, mi n° de pedido es #${numeroPedido}.
+
+Detalle: ${cantidad} ${producto}${cantidad > 1 ? 's' : ''} ${color} con talle${talle === 'Único' ? '' : 's'} ${talle}.
+
+Precio total: $${formatPrice(precioTotal)}`
+
+  // Copiar al portapapeles
+  navigator.clipboard.writeText(text).then(() => {
+    alert('📋 Mensaje copiado al portapapeles!\n\nAhora:\n1. Se abrirá WhatsApp\n2. Pega el mensaje\n3. Adjunta la FOTO\n4. Envía')
+    
+    // Abrir WhatsApp Web
+    const url = `https://wa.me/${numero}`
+    window.open(url, '_blank')
+  }).catch(err => {
+    // Si falla copiar, abre WhatsApp con el texto en la URL
+    console.log('No se puede copiar al portapapeles:', err)
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank')
+  })
 }
 
 function formatPrice(price) {

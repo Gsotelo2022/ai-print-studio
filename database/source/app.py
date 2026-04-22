@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from db import get_connection
 import hashlib
@@ -19,6 +20,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Manejador personalizado de excepciones HTTP
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """Maneja las excepciones HTTP de manera personalizada"""
+    # Si el detail es un dict, devolverlo como está
+    if isinstance(exc.detail, dict):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.detail
+        )
+    # Si es un string, envolver en un dict
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "error": str(exc.detail)}
+    )
+
 
 class RegisterIn(BaseModel):
     """Esquema para registro de usuario"""
@@ -32,6 +49,27 @@ class LoginIn(BaseModel):
     """Esquema para login de usuario"""
     email: str
     password: str
+
+
+class PaymentIn(BaseModel):
+    """Esquema para crear pago en Mercado Pago"""
+    producto: str
+    precio: float
+    cantidad: int
+
+
+class CreateOrderIn(BaseModel):
+    """Esquema para crear un pedido"""
+    user_id: int  # NUEVO: ID del usuario autenticado
+    producto: str
+    talle: str | None = None
+    color: str
+    cantidad: int
+    prompt: str
+    imagen_url: str
+    posicion_x: int = 0
+    posicion_y: int = 0
+    zoom: float = 1.0
 
 
 def hash_password(pw: str) -> str:
@@ -161,6 +199,162 @@ def login(payload: LoginIn):
         raise HTTPException(
             status_code=500,
             detail={"success": False, "error": str(e)}
+        )
+
+
+@app.post('/api/create-order')
+def create_order(payload: CreateOrderIn):
+    """Crear un nuevo pedido siguiendo la estructura: Pedidos + Pedidos_detalle"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Validar que el usuario existe
+        cur.execute("SELECT COUNT(*) FROM Usuarios WHERE id_usuario = ?", (payload.user_id,))
+        row = cur.fetchone()
+        if not row or int(row[0]) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail={"success": False, "error": f"Usuario {payload.user_id} no existe"}
+            )
+
+        # Catálogo de productos con precios (DEFAULT: todos usan id_producto = 1 por ahora)
+        catalogo = {
+            'camiseta': {'nombre': 'Camiseta', 'precio': 12000, 'id_producto': 1},
+            'taza': {'nombre': 'Taza', 'precio': 8000, 'id_producto': 1},
+            'sudadera': {'nombre': 'Sudadera', 'precio': 18000, 'id_producto': 1},
+            'buzo': {'nombre': 'Buzo', 'precio': 15000, 'id_producto': 1},
+            'musculosa': {'nombre': 'Musculosa', 'precio': 10000, 'id_producto': 1},
+            'gorra': {'nombre': 'Gorra', 'precio': 5000, 'id_producto': 1},
+            'almohada': {'nombre': 'Almohada', 'precio': 9000, 'id_producto': 1},
+            'mochila': {'nombre': 'Mochila', 'precio': 20000, 'id_producto': 1},
+        }
+
+        # Validar que el producto existe
+        if payload.producto not in catalogo:
+            raise HTTPException(
+                status_code=400,
+                detail={"success": False, "error": f"Producto no válido: {payload.producto}"}
+            )
+
+        producto_info = catalogo[payload.producto]
+        precio_unitario = producto_info['precio']
+        precio_total = precio_unitario * payload.cantidad
+        id_producto = producto_info['id_producto']
+
+        # 1. INSERTAR EN PEDIDOS con el id_usuario del usuario autenticado
+        cur.execute("""
+            INSERT INTO Pedidos (id_usuario)
+            OUTPUT INSERTED.id_pedido
+            VALUES (?)
+        """, (payload.user_id,))
+        
+        row = cur.fetchone()
+        order_id = row[0] if row else None
+
+        if not order_id:
+            raise Exception('No se pudo obtener el ID del pedido')
+
+        # 2. INSERTAR EN PEDIDOS_DETALLE con los detalles del diseño
+        detalle_text = f"Talle: {payload.talle}, Color: {payload.color}, Cantidad: {payload.cantidad}, Prompt: {payload.prompt}, Posición: ({payload.posicion_x}, {payload.posicion_y}), Zoom: {payload.zoom}"
+        
+        cur.execute("""
+            INSERT INTO Pedidos_detalle (id_pedido, id_producto, detalle, imagen, estado, pago, total)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            order_id,
+            id_producto,
+            detalle_text,
+            payload.imagen_url,
+            'pendiente',
+            'pendiente',
+            precio_total
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return json_success({
+            'order_id': order_id,
+            'producto': producto_info['nombre'],
+            'precio_unitario': precio_unitario,
+            'cantidad': payload.cantidad,
+            'precio_total': precio_total
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "error": str(e)}
+        )
+
+
+@app.post('/api/create-payment')
+def create_payment(payload: PaymentIn):
+    """Crear una preferencia de pago en Mercado Pago"""
+    try:
+        import mercadopago
+        
+        print(f'[create-payment] Iniciando con datos: producto={payload.producto}, precio={payload.precio}, cantidad={payload.cantidad}')
+        
+        # Configurar el SDK de Mercado Pago
+        sdk = mercadopago.SDK("TEST-1492177583757030-032120-4e536f078e8cf2e2f51b871b89dea0c7-193328483")
+        print('[create-payment] SDK configurado')
+        
+        # Crear la preferencia
+        preference_data = {
+            "items": [
+                {
+                    "title": payload.producto,
+                    "quantity": payload.cantidad,
+                    "unit_price": payload.precio,
+                    "currency_id": "ARS"
+                }
+            ],
+            "payer": {
+                "email": "test_user_123456@testuser.com"
+            },
+            "back_urls": {
+                "success": "http://127.0.0.1:5173/success",
+                "failure": "http://127.0.0.1:5173/failure",
+                "pending": "http://127.0.0.1:5173/pending"
+            }
+        }
+        
+        print(f'[create-payment] Enviando preferencia a Mercado Pago...')
+        preference_response = sdk.preference().create(preference_data)
+        print(f'[create-payment] Respuesta completa: {preference_response}')
+        
+        preference = preference_response.get("response", {})
+        print(f'[create-payment] Preference extraida: {preference}')
+        
+        init_point = preference.get("init_point")
+        print(f'[create-payment] Init point: {init_point}')
+        
+        if not init_point:
+            print('[create-payment] ⚠ init_point está vacío o None')
+            return json_success({
+                "init_point": None,
+                "debug": {
+                    "full_response": preference_response,
+                    "preference": preference
+                }
+            })
+        
+        return json_success({
+            "init_point": init_point
+        })
+    
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f'[create-payment] ERROR: {error_msg}')
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "error": f"Error al crear pago: {str(e)}"}
         )
 
 

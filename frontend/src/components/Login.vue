@@ -98,7 +98,9 @@ async function handleSubmit() {
     emit('login-success', user)
     form.value.password = ''
   } catch (err) {
-    alert('Error de login: ' + (err.message || err))
+    console.error('Error detallado en login:', err)
+    const errorMessage = err.message || 'No se pudo conectar con el servidor. ¿Está el backend funcionando?'
+    alert(`Error de login: ${errorMessage}`)
   } finally {
     loading.value = false
   }

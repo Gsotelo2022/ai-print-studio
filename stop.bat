@@ -3,84 +3,50 @@ chcp 65001 >nul
 color 0C
 
 REM ========================================
-REM Script para Detener Todos los Servidores
+REM Script para DETENER todos los servidores
 REM ========================================
-
-cd /d "%~dp0"
 
 echo.
 echo ╔═══════════════════════════════════════════════╗
-echo ║   DETENIENDO APLICACIÓN COMPLETA             ║
+echo ║   DETENIENDO APLICACIÓN                      ║
 echo ║   Prendete Rock - AI Print Studio            ║
 echo ╚═══════════════════════════════════════════════╝
 echo.
 
-echo Cerrando servidores...
-echo ────────────────────────────────────────
-
-REM Cerrar las ventanas de cmd por su título
-REM Los títulos deben coincidir con los definidos en RUN.bat
-
-echo   [X] Cerrando FastAPI Backend...
-taskkill /FI "WindowTitle eq FastAPI Backend - http://127.0.0.1:8000" /F >nul 2>&1
-
-echo   [X] Cerrando Vue Frontend...
-taskkill /FI "WindowTitle eq Vue Frontend - http://localhost:5173" /F >nul 2>&1
-
-echo   [X] Cerrando PHP Backend...
-taskkill /FI "WindowTitle eq PHP Backend - http://localhost:8080" /F >nul 2>&1
-
-echo   [X] Cerrando OLLAMA...
-taskkill /FI "WindowTitle eq OLLAMA - http://localhost:11434" /F >nul 2>&1
-taskkill /FI "WindowTitle eq OLLAMA Setup" /F >nul 2>&1
-
-echo   [X] Cerrando Agente IA...
-taskkill /FI "WindowTitle eq Agente IA - http://localhost:5001/productos-ia" /F >nul 2>&1
-
-REM También intentar cerrar los procesos por nombre (método alternativo)
+echo  ⏳ Deteniendo servidores...
 echo.
-echo Cerrando procesos residuales...
-echo ────────────────────────────────────────
 
-REM Cerrar procesos de Node.js (Vite)
-taskkill /IM node.exe /F >nul 2>&1
-if %errorlevel% equ 0 (
-    echo   [X] Procesos Node.js cerrados
-) else (
-    echo   [✓] No hay procesos Node.js activos
-)
+REM Detener FastAPI (puerto 8000)
+echo  • Deteniendo FastAPI Backend (puerto 8000)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000') do taskkill /F /PID %%a >nul 2>&1
+echo    ✓ FastAPI detenido
 
-REM Cerrar procesos de Python (uvicorn/FastAPI)
-taskkill /IM python.exe /F >nul 2>&1
-if %errorlevel% equ 0 (
-    echo   [X] Procesos Python cerrados
-) else (
-    echo   [✓] No hay procesos Python activos
-)
+REM Detener Vue.js (puerto 5173)
+echo  • Deteniendo Vue.js Frontend (puerto 5173)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5173') do taskkill /F /PID %%a >nul 2>&1
+echo    ✓ Vue.js detenido
 
-REM Cerrar procesos de PHP
-taskkill /IM php.exe /F >nul 2>&1
-if %errorlevel% equ 0 (
-    echo   [X] Procesos PHP cerrados
-) else (
-    echo   [✓] No hay procesos PHP activos
-)
+REM Detener PHP (puerto 8080)
+echo  • Deteniendo PHP Backend (puerto 8080)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8080') do taskkill /F /PID %%a >nul 2>&1
+echo    ✓ PHP detenido
 
-REM Cerrar procesos de OLLAMA
-taskkill /IM ollama.exe /F >nul 2>&1
-if %errorlevel% equ 0 (
-    echo   [X] Procesos OLLAMA cerrados
-) else (
-    echo   [✓] No hay procesos OLLAMA activos
-)
+REM Detener Agente IA (puerto 5001)
+echo  • Deteniendo Agente IA (puerto 5001)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5001') do taskkill /F /PID %%a >nul 2>&1
+echo    ✓ Agente IA detenido
+
+REM Detener OLLAMA (puerto 11434)
+echo  • Deteniendo OLLAMA (puerto 11434)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :11434') do taskkill /F /PID %%a >nul 2>&1
+echo    ✓ OLLAMA detenido
 
 echo.
 echo ╔═══════════════════════════════════════════════╗
 echo ║          ✅ APLICACIÓN DETENIDA              ║
 echo ╚═══════════════════════════════════════════════╝
 echo.
-echo Todos los servidores han sido cerrados.
+echo  Todos los servidores han sido detenidos.
+echo  Puedes ejecutar RUN.bat para iniciar nuevamente.
 echo.
-
-timeout /t 3 /nobreak >nul
-exit
+pause

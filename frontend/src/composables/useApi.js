@@ -99,6 +99,36 @@ export function useApi() {
     }
   }
 
+  // Función PUT genérica
+  async function put(url, data) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido')
+      }
+      return result.data
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Base URL para los endpoints PHP (ajustar si correspondiere)
   // Nuevo backend en Python (FastAPI) que corre en http://localhost:8000
   const baseApi = 'http://localhost:8000/api'
@@ -140,16 +170,93 @@ export function useApi() {
     })
   }
 
+  // Obtener todos los pedidos para el admin
+  async function getAllOrders() {
+    return get(`${baseApi}/admin/pedidos`)
+  }
+
+  // Actualizar estado de pedido
+  async function updateOrderStatus(idDetalle, nuevoEstado) {
+    return put(`${baseApi}/admin/pedidos/${idDetalle}/estado`, { estado: nuevoEstado })
+  }
+
+  // Actualizar estado de pago
+  async function updateOrderPayment(idDetalle, nuevoPago) {
+    return put(`${baseApi}/admin/pedidos/${idDetalle}/pago`, { pago: nuevoPago })
+  }
+
+  // DELETE genérica
+  async function del(url) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido')
+      }
+      return result.data
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Actualizar producto
+  async function updateProducto(idProducto, productoData) {
+    return put(`${baseApi}/admin/productos/${idProducto}`, productoData)
+  }
+
+  // Actualizar precio de todas las variantes de un producto por Detalle
+  async function updatePrecioProducto(detalle, nuevoPrecio, nuevoDetalle = null) {
+    return put(`${baseApi}/admin/productos/detalle/${encodeURIComponent(detalle)}/precio`, {
+      precio: nuevoPrecio,
+      nuevo_detalle: nuevoDetalle
+    })
+  }
+
+  // Eliminar producto
+  async function deleteProducto(idProducto) {
+    return del(`${baseApi}/admin/productos/${idProducto}`)
+  }
+
+  // Crear producto nuevo
+  async function createProducto(productoData) {
+    return post(`${baseApi}/admin/productos`, productoData)
+  }
+
   // Retornamos todo lo que los componentes necesitan
   return {
     loading,
     error,
     get,
+    post,
+    put,
+    del,
     getUsers,
     registerUser,
     loginUser,
     generateImage,
     createOrder,
     createPayment,
+    getAllOrders,
+    updateOrderStatus,
+    updateOrderPayment,
+    updateProducto,
+    updatePrecioProducto,
+    deleteProducto,
+    createProducto,
   }
 }

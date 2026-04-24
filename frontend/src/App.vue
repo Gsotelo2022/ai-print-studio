@@ -1,7 +1,7 @@
 <template>
   <div class="app">
-    <!-- Header Navbar -->
-    <header class="navbar">
+    <!-- Header Navbar (oculto para admin) -->
+    <header v-if="userType !== 'admin'" class="navbar">
       <div class="navbar-container">
         <div class="logo-section" @click="openHome">
           <div class="logo"><img src="./assets/logo-prendete-rock.jpg" alt="Logo"></div>
@@ -21,22 +21,18 @@
             <a href="#" @click.prevent="goToMyDesigns" class="nav-link">Mis Diseños</a>
             <a href="#" @click.prevent="handleLogout" class="nav-link">Cerrar Sesión</a>
           </template>
-          
-          <!-- Admin logueado -->
-          <template v-if="userLogged && userType === 'admin'">
-            <a href="#" @click.prevent="goToDashboard" class="nav-link">Dashboard</a>
-            <a href="#" class="nav-link">Pedidos</a>
-            <a href="#" class="nav-link">Productos</a>
-            <a href="#" class="nav-link">Clientes</a>
-            <a href="#" @click.prevent="handleLogout" class="nav-link">Cerrar Sesión</a>
-          </template>
         </nav>
       </div>
     </header>
 
     <main class="app-main">
+      <!-- PANEL DE ADMINISTRADOR -->
+      <section v-if="userLogged && userType === 'admin'" class="admin-section">
+        <AdminDashboard @logout="handleLogout" />
+      </section>
+
       <!-- PASO 0: REGISTRO -->
-      <section v-if="showRegistrationForm" class="workflow-section">
+      <section v-if="showRegistrationForm && userType !== 'admin'" class="workflow-section">
         <CreateUser
           @user-created="onUserCreated"
           @go-to-login="handleGoToLogin"
@@ -44,11 +40,11 @@
       </section>
 
       <!-- LOGIN -->
-      <section v-if="showLoginForm" class="workflow-section">
+      <section v-if="showLoginForm && userType !== 'admin'" class="workflow-section">
         <Login
           @login-success="onLoginSuccess"
           @go-to-register="openRegister"
-          @forgot-password="handleForgotPassword"
+          @forgot-password="handleFuserType === 'cliente' && orgotPassword"
         />
       </section>
 
@@ -102,17 +98,17 @@
       </section>
 
       <!-- PASO 1B: SUBIR IMAGEN -->
-      <section v-if="imageSourceMode === 'upload'" class="workflow-section">
+      <section v-if="imageSourceMode === 'upload' && userType === 'cliente'" class="workflow-section">
         <ImageUploader @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
       <!-- PASO 1C: GENERAR CON IA -->
-      <section v-if="imageSourceMode === 'generate'" class="workflow-section">
+      <section v-if="imageSourceMode === 'generate' && userType === 'cliente'" class="workflow-section">
         <GenerateImage @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
       <!-- PASO 2: EDITAR/REMOVER FONDO DE IMAGEN -->
-      <section v-if="showBackgroundRemover && generatedImage" class="workflow-section">
+      <section v-if="showBackgroundRemover && generatedImage && userType === 'cliente'" class="workflow-section">
         <BackgroundRemover
           :imagenUrl="generatedImage"
           @image-processed="onImageProcessed"
@@ -122,7 +118,7 @@
       </section>
 
       <!-- PASO 3: SELECCIONAR PRODUCTO -->
-      <section v-if="generatedImage && !selectedProduct && !showBackgroundRemover" class="workflow-section">
+      <section v-if="generatedImage && !selectedProduct && !showBackgroundRemover && userType === 'cliente'" class="workflow-section">
         <ProductSelector
           :productos="productos"
           :loading="productosLoading"
@@ -133,7 +129,7 @@
       </section>
 
       <!-- PASO 3: VISTA PREVIA -->
-      <section v-if="selectedProduct && !orderData" class="workflow-section">
+      <section v-if="selectedProduct && !orderData && userType === 'cliente'" class="workflow-section">
         <PreviewPanel
           :imagen-url="generatedImage"
           :producto="selectedProduct"
@@ -145,7 +141,7 @@
       </section>
 
       <!-- PASO 4: CHECKOUT -->
-      <section v-if="orderData" class="workflow-section">
+      <section v-if="orderData && userType === 'cliente'" class="workflow-section">
         <CheckoutPanel
           :order="orderData"
           :imagen-url="generatedImage"
@@ -154,8 +150,8 @@
       </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="app-footer">
+    <!-- Footer (oculto para admin) -->
+    <footer v-if="userType !== 'admin'" class="app-footer">
       <div class="footer-content">
         <span>✅ Pago Seguro</span>
         <span>✅ Alta Calidad</span>
@@ -177,6 +173,7 @@ import ProductSelector from './components/ProductSelector.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
 import CheckoutPanel from './components/CheckoutPanel.vue'
 import GenerateImage from './components/GenerateImage.vue'
+import AdminDashboard from './components/AdminDashboard.vue'
 
 // Estado de autenticación y usuario
 const userLogged = ref(false) // cambiar a true para ver diferentes vistas
@@ -346,14 +343,29 @@ function onLoginSuccess(loginData) {
   currentUser.value = loginData
   userLogged.value = true
   showLoginForm.value = false
+  
+  // Detectar tipo de usuario (admin o cliente)
+  // El backend devuelve 'tipo' en minúscula con valores 'administrador' o 'cliente'
+  const tipoUsuario = (loginData.tipo || loginData.Tipo || 'cliente').toLowerCase()
+  userType.value = (tipoUsuario === 'administrador' || tipoUsuario === 'admin') ? 'admin' : 'cliente'
+  
+  console.log('Tipo de usuario detectado:', userType.value, 'desde:', loginData.tipo)
+  
+  // Guardar email para mostrar en el panel admin
+  if (loginData.email || loginData.Email) {
+    localStorage.setItem('userEmail', loginData.email || loginData.Email)
+  }
+  
   // Auto-mostrar dashboard después del login
   imageSourceMode.value = null
   generatedImage.value = null
   selectedProduct.value = null
   orderData.value = null
   
-  // NUEVO: Cargar productos del agente después del login
-  cargarProductosDelAgente()
+  // NUEVO: Cargar productos del agente después del login (solo para clientes)
+  if (userType.value === 'cliente') {
+    cargarProductosDelAgente()
+  }
 }
 
 function handleForgotPassword() {
@@ -411,6 +423,7 @@ function handleLogout() {
   orderData.value = null
   showRegistrationForm.value = false
   showLoginForm.value = false
+  localStorage.removeItem('userEmail')
 }
 </script>
 
@@ -1003,5 +1016,28 @@ function handleLogout() {
     gap: 12px;
     justify-content: flex-start;
   }
+}
+
+/* ESTILOS PANEL ADMINISTRADOR */
+.admin-section {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+/* Cuando admin está activo, ocultar el main-content */
+.app:has(.admin-section) {
+  overflow: hidden;
+}
+
+.app:has(.admin-section) .app-main {
+  padding: 0;
+  margin: 0;
+  max-width: none;
 }
 </style>

@@ -49,7 +49,6 @@
             <th>Teléfono</th>
             <th>Pedidos</th>
             <th>Total gastado</th>
-            <th>Registro</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -71,7 +70,6 @@
             <td>
               <span class="cliente-total">{{ formatearMoneda(cliente.totalGastado) }}</span>
             </td>
-            <td>{{ cliente.fechaRegistro }}</td>
             <td>
               <div class="acciones">
                 <button class="btn-accion" title="Ver detalle">👁️</button>
@@ -126,20 +124,28 @@ const cerrarModalEdicion = () => {
 
 const guardarCambiosCliente = async (clienteEditado) => {
   console.log('Guardando cambios para:', clienteEditado)
-  // Aquí irá la lógica para llamar a la API y guardar los cambios
   
-  // Simulación de guardado
   try {
+    // Enviar solo los campos requeridos por el backend
+    const datosActualizacion = {
+      nombre: clienteEditado.nombre,
+      email: clienteEditado.email,
+      telefono: clienteEditado.telefono || null,
+      tipo: clienteEditado.tipo,
+      cuenta_bloqueada: clienteEditado.cuenta_bloqueada
+    };
+
     const response = await fetch(`http://localhost:8000/api/admin/clientes/${clienteEditado.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(clienteEditado),
+      body: JSON.stringify(datosActualizacion),
     });
 
     if (!response.ok) {
-      throw new Error('Error al actualizar el cliente');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al actualizar el cliente');
     }
 
     const data = await response.json();
@@ -147,13 +153,14 @@ const guardarCambiosCliente = async (clienteEditado) => {
     if (data.success) {
       // Actualizar la lista de clientes
       await cargarClientes()
-      console.log('Cliente actualizado con éxito')
+      console.log('✅ Cliente actualizado con éxito')
+      alert('Cliente actualizado correctamente');
     } else {
       throw new Error(data.error || 'Error desconocido al actualizar');
     }
   } catch (err) {
-    console.error('Error al guardar cambios:', err)
-    // Manejar el error en la UI si es necesario
+    console.error('❌ Error al guardar cambios:', err)
+    alert('Error al actualizar el cliente: ' + err.message);
   }
 
   cerrarModalEdicion()

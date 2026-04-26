@@ -1,46 +1,66 @@
 <?php
 // ============================================
-// Conexión a SQL Server
+// Conexión a SQL Server (ODBC)
 // ============================================
-// Este archivo devuelve una conexión PDO a SQL Server.
-//
-// FLUJO: Cada endpoint PHP incluye este archivo para
-// obtener la conexión a la base de datos.
-//
-// REQUISITO: Tener instalada la extensión pdo_sqlsrv de PHP.
-// Descarga: https://docs.microsoft.com/en-us/sql/connect/php/download-drivers-php-sql-server
+// Conexión a PrendeteRock usando DSN ODBC
 
 function getDBConnection(): PDO {
-    $server   = 'localhost';       // Dirección del servidor SQL Server
-    $database = 'ai_print_studio'; // Nombre de la base de datos
-    $username = 'sa';              // Usuario (cambiar en producción)
-    $password = 'TU_PASSWORD';     // Contraseña (cambiar en producción)
-
-    // DSN (Data Source Name) para SQL Server con PDO
-    // Formato: sqlsrv:Server=HOST;Database=NOMBRE
-    $dsn = "sqlsrv:Server={$server};Database={$database}";
+    // Intentar con ODBC Driver 17 for SQL Server (moderno)
+    // Si falla, usaremos named pipes
+    $server   = '.';                  // Servidor local
+    $database = 'PrendeteRock';       // BD existente
+    $username = '';                   // Windows Auth - usuario actual
+    $password = '';                   // Windows Auth - no necesita password
 
     try {
-        // Creamos la conexión PDO con opciones seguras:
+        // Intentar con ODBC Driver 17
+        $dsn = "odbc:Driver={ODBC Driver 17 for SQL Server};Server={$server};Database={$database};Trusted_Connection=yes;";
+        
         $pdo = new PDO($dsn, $username, $password, [
-            // Lanza excepciones cuando hay errores SQL (no falla silenciosamente)
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-
-            // Devuelve filas como arrays asociativos (más fácil de usar)
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
 
         return $pdo;
 
-    } catch (PDOException $e) {
-        // Si no puede conectar, devolvemos error JSON y cortamos ejecución
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'error'   => 'Error de conexión a la base de datos'
-        ]);
-        // Registramos el error real en el log del servidor (no lo exponemos al usuario)
-        error_log('DB Connection Error: ' . $e->getMessage());
-        exit;
+    } catch (PDOException $e1) {
+        // Si falla, intentar con ODBC Driver 13
+        try {
+            $dsn = "odbc:Driver={ODBC Driver 13 for SQL Server};Server={$server};Database={$database};Trusted_Connection=yes;";
+            
+            $pdo = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]);
+
+            return $pdo;
+
+        } catch (PDOException $e2) {
+            // Si falla, intentar con SQL Native Client
+            try {
+                $dsn = "odbc:Driver={SQL Server Native Client 11.0};Server={$server};Database={$database};Trusted_Connection=yes;";
+                
+                $pdo = new PDO($dsn, $username, $password, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                ]);
+
+                return $pdo;
+
+            } catch (PDOException $e3) {
+                // Si todos fallan, devolver error detallado
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'error'   => 'No se pudo conectar a SQL Server. Drivers intentados: ODBC 17, ODBC 13, SQL Native Client 11.0',
+                    'details' => 'Error: ' . $e3->getMessage()
+                ]);
+                error_log('DB Connection Errors:');
+                error_log('ODBC 17: ' . $e1->getMessage());
+                error_log('ODBC 13: ' . $e2->getMessage());
+                error_log('SQL Native Client: ' . $e3->getMessage());
+                exit;
+            }
+        }
     }
 }

@@ -5,10 +5,20 @@ def get_connection():
     try:
         conn = pyodbc.connect(
             'DRIVER={ODBC Driver 17 for SQL Server};'
-            'SERVER=localhost\\SQLEXPRESS01;'
+            'SERVER=.\SQLEXPRESS01;'
             'DATABASE=PrendeteRock;'
             'Trusted_Connection=yes;'
         )
         return conn
     except Exception as e:
-        raise RuntimeError(f'No se pudo conectar a la base de datos: {e}')
+        # Si falla, intentar con localhost
+        try:
+            conn = pyodbc.connect(
+                'DRIVER={ODBC Driver 17 for SQL Server};'
+                'SERVER=localhost\\SQLEXPRESS01;'
+                'DATABASE=PrendeteRock;'
+                'Trusted_Connection=yes;'
+            )
+            return conn
+        except:
+            raise RuntimeError(f'No se pudo conectar a SQL Server SQLEXPRESS01. Verifica que el servidor esté corriendo y la BD PrendeteRock existe. Error: {e}')

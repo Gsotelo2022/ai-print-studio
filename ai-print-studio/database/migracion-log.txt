@@ -1,0 +1,15 @@
+Changed database context to 'PrendeteRock'.
+========================================================
+INICIANDO MIGRACIÓN COMPLETA
+========================================================
+ 
+PASO 1: Respaldando tablas existentes...
+ 
+Caution: Changing any part of an object name could break scripts and stored procedures.
+Caution: Changing any part of an object name could break scripts and stored procedures.
+Caution: Changing any part of an object name could break scripts and stored procedures.
+Caution: Changing any part of an object name could break scripts and stored procedures.
+Msg 207, Level 16, State 1, Server Gsotelo\SQLEXPRESS01, Line 378
+Invalid column name 'cantidad'.
+Msg 207, Level 16, State 1, Server Gsotelo\SQLEXPRESS01, Line 379
+Invalid column name 'cantidad'.

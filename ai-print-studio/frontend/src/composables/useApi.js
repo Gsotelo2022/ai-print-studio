@@ -37,6 +37,21 @@ export function useApi() {
       // (igual que json_decode en PHP)
       const result = await response.json()
 
+      // Verificar si la respuesta es un error HTTP
+      if (!response.ok) {
+        // Manejar errores específicos
+        if (response.status === 401) {
+          throw new Error(result.detail?.error || 'Credenciales inválidas. Verifica email y contraseña.')
+        }
+        if (response.status === 409) {
+          throw new Error(result.detail?.error || 'Este email ya está registrado.')
+        }
+        if (response.status === 500) {
+          throw new Error(result.detail?.error || 'Error del servidor. Intenta más tarde.')
+        }
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+
       // Nuestro backend siempre devuelve { success: true/false, ... }
       if (!result.success) {
         throw new Error(result.error || 'Error desconocido')
@@ -66,6 +81,42 @@ export function useApi() {
       })
 
       const result = await response.json()
+      
+      // Verificar si la respuesta es un error HTTP
+      if (!response.ok) {
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido')
+      }
+      return result.data
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Función PUT genérica
+  async function put(url, data) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+      
       if (!result.success) {
         throw new Error(result.error || 'Error desconocido')
       }
@@ -114,9 +165,76 @@ export function useApi() {
 
   // Crear pago con MercadoPago
   async function createPayment(orderId) {
-    return post('/api/create-payment.php', {
+    return post('http://localhost:8080/api/create-payment.php', {
       order_id: orderId,
     })
+  }
+
+  // Obtener todos los pedidos para el admin
+  async function getAllOrders() {
+    return get(`${baseApi}/admin/pedidos`)
+  }
+
+  // Actualizar estado de pedido
+  async function updateOrderStatus(idDetalle, nuevoEstado) {
+    return put(`${baseApi}/admin/pedidos/${idDetalle}/estado`, { estado: nuevoEstado })
+  }
+
+  // Actualizar estado de pago
+  async function updateOrderPayment(idDetalle, nuevoPago) {
+    return put(`${baseApi}/admin/pedidos/${idDetalle}/pago`, { pago: nuevoPago })
+  }
+
+  // DELETE genérica
+  async function del(url) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido')
+      }
+      return result.data
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Actualizar producto
+  async function updateProducto(idProducto, productoData) {
+    return put(`${baseApi}/admin/productos/${idProducto}`, productoData)
+  }
+
+  // Actualizar precio de todas las variantes de un producto por Detalle
+  async function updatePrecioProducto(detalle, nuevoPrecio, nuevoDetalle = null) {
+    return put(`${baseApi}/admin/productos/detalle/${encodeURIComponent(detalle)}/precio`, {
+      precio: nuevoPrecio,
+      nuevo_detalle: nuevoDetalle
+    })
+  }
+
+  // Eliminar producto
+  async function deleteProducto(idProducto) {
+    return del(`${baseApi}/admin/productos/${idProducto}`)
+  }
+
+  // Crear producto nuevo
+  async function createProducto(productoData) {
+    return post(`${baseApi}/admin/productos`, productoData)
   }
 
   // Retornamos todo lo que los componentes necesitan
@@ -124,11 +242,21 @@ export function useApi() {
     loading,
     error,
     get,
+    post,
+    put,
+    del,
     getUsers,
     registerUser,
     loginUser,
     generateImage,
     createOrder,
     createPayment,
+    getAllOrders,
+    updateOrderStatus,
+    updateOrderPayment,
+    updateProducto,
+    updatePrecioProducto,
+    deleteProducto,
+    createProducto,
   }
 }

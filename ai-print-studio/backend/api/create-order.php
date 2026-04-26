@@ -62,33 +62,47 @@ $precioUnitario = $catalogo[$producto]['precio'];
 $precioTotal = $precioUnitario * $cantidad;
 
 // --- 4. Insertar en la base de datos ---
-// Usamos prepared statements (consultas preparadas) para prevenir SQL injection.
-// Los ? son placeholders que PDO reemplaza de forma segura.
+try {
+    $pdo = getDBConnection();
 
-$pdo = getDBConnection();
+    // Usar sintaxis SQL Server para obtener el ID del registro insertado
+    $sql = "INSERT INTO Pedidos 
+            (producto, talle, color, precio, cantidad, prompt, imagen_url, posicion_x, posicion_y, zoom, estado, fecha_creacion)
+            OUTPUT INSERTED.id_pedido
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', GETDATE())";
 
-$sql = "INSERT INTO pedidos (producto, talle, color, precio, cantidad, prompt, imagen_url, estado)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        $producto,
+        $talle,
+        $color,
+        $precioUnitario,
+        $cantidad,
+        $prompt,
+        $imagenUrl,
+        isset($input['posicion_x']) ? (int)$input['posicion_x'] : 0,
+        isset($input['posicion_y']) ? (int)$input['posicion_y'] : 0,
+        isset($input['zoom']) ? (float)$input['zoom'] : 1.0,
+    ]);
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute([
-    $producto,
-    $talle,
-    $color,
-    $precioUnitario,
-    $cantidad,
-    $prompt,
-    $imagenUrl,
-]);
+    // Obtener el ID del pedido recién creado desde la salida de OUTPUT
+    $result = $stmt->fetch();
+    $orderId = $result['id_pedido'] ?? null;
+    
+    if (!$orderId) {
+        throw new Error('No se obtuvo ID del pedido');
+    }
 
-// Obtener el ID del pedido recién creado
-$orderId = $pdo->lastInsertId();
+    // --- 5. Responder al frontend ---
+    jsonSuccess([
+        'order_id'       => (int)$orderId,
+        'producto'       => $catalogo[$producto]['nombre'],
+        'precio_unitario'=> $precioUnitario,
+        'cantidad'       => $cantidad,
+        'precio_total'   => $precioTotal,
+    ]);
 
-// --- 5. Responder al frontend ---
-jsonSuccess([
-    'order_id'       => (int)$orderId,
-    'producto'       => $catalogo[$producto]['nombre'],
-    'precio_unitario'=> $precioUnitario,
-    'cantidad'       => $cantidad,
-    'precio_total'   => $precioTotal,
-]);
+} catch (Exception $e) {
+    error_log('Error creando pedido: ' . $e->getMessage());
+    jsonError('Error al crear el pedido: ' . $e->getMessage());
+}

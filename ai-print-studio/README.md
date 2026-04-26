@@ -6,6 +6,37 @@ Proyecto educativo para aprender arquitectura web moderna: **Vue 3 + PHP + SQL S
 
 ---
 
+## 🚀 Inicio Rápido
+
+### Scripts Disponibles
+
+| Script | Descripción |
+|--------|-------------|
+| **`RUN.bat`** | ✅ Inicia toda la aplicación (Backend + Frontend + IA) |
+| **`stop.bat`** | 🛑 Detiene todos los servidores |
+
+### Ejecutar la aplicación completa
+
+```bash
+# Desde la raíz del proyecto
+RUN.bat
+```
+
+Esto iniciará automáticamente:
+- 🔹 **FastAPI Backend V2** en `http://127.0.0.1:8000` (con virtual environment)
+- 🔹 **Vue.js Frontend** en `http://localhost:5173`
+- 🔹 **Agente IA** en `http://127.0.0.1:5001` (si OLLAMA está instalado)
+- 🔹 **PHP Backend** en `http://127.0.0.1:8080` (si PHP está instalado)
+
+### Detener la aplicación
+
+```bash
+# Desde la raíz del proyecto
+stop.bat
+```
+
+---
+
 ## Estructura del Proyecto
 
 ```

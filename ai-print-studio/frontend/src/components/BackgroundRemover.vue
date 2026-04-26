@@ -1,16 +1,22 @@
 <template>
   <div class="background-remover-section">
-    <h2 class="section-title">
-      <span class="step-badge">2</span>
-      Editar imagen
-    </h2>
+    <!-- Header con título y botón volver -->
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="step-badge">2</span>
+        Editar imagen
+      </h2>
+      <button @click="goBack" class="btn-volver">
+        ← Volver
+      </button>
+    </div>
 
     <div class="remover-layout">
       <!-- Vista previa de la imagen -->
       <div class="image-preview">
         <div class="preview-container">
           <img 
-            :src="imagenUrl.value" 
+            :src="imagenDisplayUrl" 
             :alt="'Imagen a editar'" 
             class="preview-image"
             :style="{
@@ -29,22 +35,26 @@
 
           <div class="option-item">
             <button @click="removeBackground" class="btn btn-option" :disabled="loading">
-              <span v-if="!loading">✨ Remover fondo</span>
-              <span v-else>⏳ Procesando...</span>
+              <span v-if="!loading">✨ REMOVER FONDO</span>
+              <span v-else>⏳ PROCESANDO (puede tomar 1-3 minutos)...</span>
             </button>
-            <p class="option-description">Elimina el fondo de la imagen para mejor resultado</p>
+            <p class="option-description" v-if="!loading">Elimina el fondo de la imagen usando IA</p>
+            <p class="option-description" v-else style="color: #ffd54f;">
+              ⏳ Procesando con IA... La primera vez puede tardar más mientras descarga el modelo.
+              <br>Por favor espera sin cerrar esta ventana.
+            </p>
           </div>
 
           <div class="option-item">
             <button @click="rotatImage" class="btn btn-option">
-              🔄 Rotar imagen
+              🔄 ROTAR IMAGEN
             </button>
             <p class="option-description">Gira la imagen 90 grados</p>
           </div>
 
           <div class="option-item">
             <button @click="flipImage" class="btn btn-option">
-              ↔️ Voltear imagen
+              ↔️ VOLTEAR IMAGEN
             </button>
             <p class="option-description">Espeja la imagen horizontalmente</p>
           </div>
@@ -70,9 +80,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 
-const emit = defineEmits(['image-processed', 'skip-editing'])
+const emit = defineEmits(['image-processed', 'skip-editing', 'go-back'])
 
 const props = defineProps({
   imagenUrl: {
@@ -89,63 +99,137 @@ const imageRotation = ref(0)
 const imageFlipped = ref(false)
 const backgroundRemoved = ref(false)
 const imageFilter = ref('')
-const imagenUrl = ref(props.imagenUrl)
+
+// Variable para almacenar la imagen procesada (si se modifica)
+const imagenUrlActual = ref(props.imagenUrl)
+
+// Computed para obtener la imagen actual (original o procesada)
+const imagenDisplayUrl = computed(() => imagenUrlActual.value)
+
+// Watch para sincronizar cuando la prop cambia
+watch(() => props.imagenUrl, (newUrl) => {
+  imagenUrlActual.value = newUrl
+  // Resetear los cambios cuando viene una imagen nueva
+  imageRotation.value = 0
+  imageFlipped.value = false
+  backgroundRemoved.value = false
+  imageFilter.value = ''
+  hasChanges.value = false
+  status.value = ''
+})
 
 function removeBackground() {
   loading.value = true
-  status.value = '⏳ Removiendo fondo con IA (esto puede tomar un momento)...'
+  hasChanges.value = false
+  status.value = '⏳ Removiendo fondo con IA (10-180 segundos aprox. La primera vez tarda más)...'
   statusType.value = 'info'
 
-  console.log('[removeBackground] Iniciando, imagen URL:', imagenUrl.value)
+  console.log('[removeBackground] Iniciando, imagen URL:', imagenUrlActual.value)
 
-  // Obtener la imagen del URL y convertir a blob/file
-  fetch(imagenUrl.value)
-    .then(response => {
-      console.log('[removeBackground] Blob fetch status:', response.status)
-      if (!response.ok) throw new Error(`No se pudo obtener la imagen: ${response.status}`)
-      return response.blob()
-    })
-    .then(blob => {
-      console.log('[removeBackground] Blob obtenido, tamaño:', blob.size, 'tipo:', blob.type)
-      const formData = new FormData()
-      formData.append('file', blob, 'imagen.png')
-      
-      console.log('[removeBackground] Enviando POST a /api/remove-background')
-      return fetch('http://localhost:8000/api/remove-background', {
-        method: 'POST',
-        body: formData
+  // Si la imagen es un blob local (data:image/...), convertirla directamente
+  if (imagenUrlActual.value.startsWith('data:')) {
+    console.log('[removeBackground] Detectada imagen local (blob)')
+    fetch(imagenUrlActual.value)
+      .then(res => res.blob())
+      .then(blob => sendToRemoveBackground(blob))
+      .catch(err => handleRemoveBackgroundError(err))
+  } else {
+    // Si es una URL, descargarla
+    console.log('[removeBackground] Detectada imagen remota (URL)')
+    fetch(imagenUrlActual.value, { mode: 'cors' })
+      .then(response => {
+        console.log('[removeBackground] Fetch status:', response.status)
+        if (!response.ok) throw new Error(`No se pudo obtener la imagen: ${response.status}`)
+        return response.blob()
       })
-    })
+      .then(blob => sendToRemoveBackground(blob))
+      .catch(err => handleRemoveBackgroundError(err))
+  }
+}
+
+function sendToRemoveBackground(blob) {
+  console.log('[removeBackground] Blob obtenido, tamaño:', blob.size, 'tipo:', blob.type)
+  
+  const formData = new FormData()
+  formData.append('file', blob, 'imagen.png')
+  
+  console.log('[removeBackground] Enviando POST a /api/remove-background')
+  
+  // Crear un AbortController para poder cancelar si es necesario
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+    handleRemoveBackgroundError(new Error('Timeout: El proceso tardó más de 5 minutos. Intenta con una imagen más pequeña.'))
+  }, 300000) // 5 minutos de timeout
+  
+  fetch('http://localhost:8000/api/remove-background', {
+    method: 'POST',
+    body: formData,
+    signal: controller.signal
+  })
     .then(response => {
-      console.log('[removeBackground] Respuesta del servidor status:', response.status)
+      console.log('[removeBackground] Respuesta status:', response.status)
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        return response.json().then(json => {
+          throw new Error(json.detail?.error || json.error || `Error HTTP ${response.status}`)
+        })
       }
       return response.json()
     })
     .then(data => {
+      clearTimeout(timeoutId) // Limpiar el timeout
       console.log('[removeBackground] Datos recibidos:', data)
-      if (data.success) {
+      
+      if (data.success || data.data?.imagen_url) {
         loading.value = false
         status.value = '✅ ¡Fondo removido exitosamente!'
         statusType.value = 'success'
         backgroundRemoved.value = true
         imageFilter.value = 'drop-shadow(0 0 10px rgba(6, 182, 212, 0.5))'
         hasChanges.value = true
-        // Actualizar la imagen con la procesada
+        
         console.log('[removeBackground] Actualizando imagen...')
-        imagenUrl.value = data.data.imagen_url
+        imagenUrlActual.value = data.data.imagen_url
         console.log('[removeBackground] Imagen actualizada exitosamente')
+        
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => {
+          status.value = ''
+        }, 3000)
       } else {
-        throw new Error(data.detail?.error || 'Error desconocido del servidor')
+        throw new Error(data.detail?.error || data.error || 'Error desconocido del servidor')
       }
     })
     .catch(error => {
+      clearTimeout(timeoutId) // Limpiar el timeout también en caso de error
       console.error('[removeBackground] Error:', error)
-      loading.value = false
-      status.value = `❌ Error: ${error.message}`
-      statusType.value = 'error'
+      handleRemoveBackgroundError(error)
     })
+}
+
+function handleRemoveBackgroundError(error) {
+  loading.value = false
+  
+  // Mejorar el mensaje de error según el tipo
+  let errorMessage = 'No se pudo remover el fondo'
+  
+  if (error.name === 'AbortError') {
+    errorMessage = 'Timeout: El proceso tardó demasiado (>5 min)'
+  } else if (error.message.includes('Failed to fetch')) {
+    errorMessage = 'Error de conexión. ¿Está corriendo el servidor FastAPI?'
+  } else if (error.message) {
+    errorMessage = error.message
+  }
+  
+  status.value = `❌ Error: ${errorMessage}`
+  statusType.value = 'error'
+  console.error('[removeBackground] Error final:', error)
+  
+  // Mantener el mensaje de error visible por más tiempo
+  setTimeout(() => {
+    status.value = ''
+  }, 10000)
 }
 
 function rotatImage() {
@@ -178,11 +262,15 @@ function continueWithoutChanges() {
 
 function confirmChanges() {
   emit('image-processed', {
-    imagen_url: imagenUrl.value,
+    imagen_url: imagenUrlActual.value,
     rotation: imageRotation.value,
     flipped: imageFlipped.value,
     backgroundRemoved: backgroundRemoved.value
   })
+}
+
+function goBack() {
+  emit('go-back')
 }
 </script>
 
@@ -206,6 +294,32 @@ function confirmChanges() {
   gap: 40px;
   padding: 40px 0;
   animation: fadeIn 0.3s ease;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.btn-volver {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 2px solid #ffd54f;
+  color: #ffd54f;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-volver:hover {
+  background-color: rgba(255, 213, 79, 0.1);
+  transform: translateY(-2px);
 }
 
 .section-title {

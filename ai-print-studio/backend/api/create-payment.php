@@ -57,6 +57,9 @@ try {
 
     // ✅ Respuesta OK
     echo json_encode([
+        "success" => true,
+        "sandbox_url" => $preference->init_point,
+        "payment_url" => $preference->init_point,
         "init_point" => $preference->init_point
     ]);
 

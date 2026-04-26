@@ -19,13 +19,35 @@
 -->
 <template>
   <div class="product-selector">
-    <h2 class="section-title">
-      <span class="step-badge">3</span>
-      Selecciona el producto
-    </h2>
+    <!-- Header con título y botón volver -->
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="step-badge">3</span>
+        Selecciona el producto
+      </h2>
+      <button @click="goBack" class="btn-volver">
+        ← Volver
+      </button>
+    </div>
 
-    <!-- Grilla de productos -->
-    <div class="products-grid">
+    <!-- Estado de carga: mostrar mientras el agente procesa productos -->
+    <div v-if="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <h3 class="loading-title">🔄 Cargando productos disponibles...</h3>
+      <p class="loading-subtitle">
+        El agente IA está consultando el catálogo desde la base de datos.<br>
+        Esto puede tardar entre 30 y 90 segundos.
+      </p>
+      <div class="loading-progress">
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+        <p class="progress-text">Procesando con OLLAMA qwen2.5:1.5b...</p>
+      </div>
+    </div>
+
+    <!-- Grilla de productos: mostrar solo cuando no está cargando -->
+    <div v-else class="products-grid">
       <!--
         v-for recorre el catálogo de productos.
         Object.entries() convierte { camiseta: {...}, taza: {...} }
@@ -118,10 +140,18 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
+  loaded: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // --- Eventos ---
-const emit = defineEmits(['product-selected'])
+const emit = defineEmits(['product-selected', 'go-back'])
 
 // --- Estado local ---
 const selectedKey = ref(null)   // Key del producto seleccionado ('camiseta', 'taza', etc.)
@@ -129,24 +159,36 @@ const talle = ref('M')
 const color = ref('Blanco')
 const cantidad = ref(1)
 
-// Opciones
-const talles = ['S', 'M', 'L', 'XL', 'XXL']
-const colores = ['Blanco', 'Negro', 'Gris', 'Azul']
-
 // Iconos para cada producto
 const productIcons = {
-  camiseta: '👕',
-  taza:     '☕',
-  sudadera: '🧥',
-  cojin:    '🛋️',
-  mochila:  '🎒',
-  gorra:    '🧢',
+  remera:    '👕',
+  taza:      '☕',
+  buzo:      '🧥',
+  gorra:     '🧢',
+  bolsa:     '🛍️',
+  // Compatibilidad con keys antiguas
+  camiseta:  '👕',
+  sudadera:  '🧥',
+  cojin:     '🛋️',
+  mochila:   '🎒',
+  musculosa: '👕',
+  almohada:  '🛋️',
 }
 
 // --- Computed ---
 // El producto actualmente seleccionado (objeto completo)
 const currentProduct = computed(() => {
   return selectedKey.value ? props.productos[selectedKey.value] : null
+})
+
+// Talles disponibles para el producto actual (dinámicos del agente)
+const talles = computed(() => {
+  return currentProduct.value?.talles || []
+})
+
+// Colores disponibles para el producto actual (dinámicos del agente)
+const colores = computed(() => {
+  return currentProduct.value?.colores || []
 })
 
 // Precio total = precio unitario × cantidad
@@ -166,8 +208,8 @@ const canContinue = computed(() => {
 function selectProduct(key) {
   selectedKey.value = key
   // Resetear variantes al cambiar producto
-  talle.value = 'M'
-  color.value = 'Blanco'
+  talle.value = talles.value.length > 0 ? talles.value[0] : null
+  color.value = colores.value.length > 0 ? colores.value[0] : null
   cantidad.value = 1
 }
 
@@ -182,6 +224,10 @@ function confirmSelection() {
     cantidad: cantidad.value,
     precioTotal: precioTotal.value,
   })
+}
+
+function goBack() {
+  emit('go-back')
 }
 
 function formatPrice(price) {
@@ -200,6 +246,32 @@ function formatPrice(price) {
 
 .product-selector {
   padding: 20px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.btn-volver {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 2px solid #ffd54f;
+  color: #ffd54f;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-volver:hover {
+  background-color: rgba(255, 213, 79, 0.1);
+  transform: translateY(-2px);
 }
 
 .section-title {
@@ -226,8 +298,8 @@ function formatPrice(price) {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
   margin-bottom: 32px;
 }
 
@@ -236,11 +308,11 @@ function formatPrice(price) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px;
+  gap: 4px;
+  padding: 10px;
   background: var(--color-surface);
   border: 2px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -259,13 +331,14 @@ function formatPrice(price) {
 }
 
 .product-icon {
-  font-size: 2.5rem;
+  font-size: 1.6rem;
 }
 
 .product-name {
   font-weight: 600;
   color: var(--color-text);
   text-align: center;
+  font-size: 0.85rem;
   font-size: 0.95rem;
 }
 
@@ -356,5 +429,78 @@ function formatPrice(price) {
   color: var(--color-primary);
   font-weight: 700;
   font-size: 1.2rem;
+}
+
+/* === ESTILOS DEL LOADER === */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(6, 182, 212, 0.2);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 24px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-title {
+  color: var(--color-text);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.loading-subtitle {
+  color: rgba(230, 238, 248, 0.7);
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 500px;
+  margin-bottom: 32px;
+}
+
+.loading-progress {
+  width: 100%;
+  max-width: 400px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(6, 182, 212, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  animation: progress 2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes progress {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 0%; }
+}
+
+.progress-text {
+  color: rgba(230, 238, 248, 0.6);
+  font-size: 0.9rem;
+  font-style: italic;
 }
 </style>

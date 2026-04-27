@@ -752,18 +752,19 @@ onMounted(() => {
 }
 
 .view-header {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .view-title {
-  font-size: 2rem;
-  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+  margin: 0 0 4px 0;
   color: #e2e8f0;
 }
 
 .view-description {
   color: #94a3b8;
   margin: 0;
+  font-size: 0.8rem;
 }
 
 .loading-message,
@@ -796,16 +797,16 @@ onMounted(() => {
 /* SECTION */
 .section {
   background: #1e293b;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .header-left,
@@ -824,10 +825,10 @@ onMounted(() => {
 .btn-refresh {
   background: #334155;
   border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 0.95rem;
   transition: background 0.2s;
 }
 
@@ -844,15 +845,15 @@ onMounted(() => {
   background: #10b981;
   border: none;
   color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .btn-export:hover {
@@ -908,13 +909,13 @@ onMounted(() => {
   background: #334155;
   border: 2px solid transparent;
   color: #e2e8f0;
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   transition: all 0.2s;
 }
 
@@ -947,12 +948,12 @@ onMounted(() => {
 
 .input-filtro,
 .select-filtro {
-  padding: 10px;
+  padding: 6px 8px;
   background: #0f172a;
   border: 1px solid #334155;
-  border-radius: 6px;
+  border-radius: 4px;
   color: #e2e8f0;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .input-filtro::placeholder {
@@ -970,10 +971,10 @@ onMounted(() => {
   background: #475569;
   border: none;
   color: #e2e8f0;
-  padding: 10px 16px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   transition: background 0.2s;
 }
 
@@ -985,16 +986,16 @@ onMounted(() => {
 .tabla-container {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 600px;
-  margin-bottom: 16px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 360px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .pedidos-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .pedidos-table thead {
@@ -1005,7 +1006,7 @@ onMounted(() => {
 }
 
 .pedidos-table th {
-  padding: 12px;
+  padding: 8px;
   text-align: left;
   color: #94a3b8;
   font-weight: 600;
@@ -1022,7 +1023,7 @@ onMounted(() => {
 }
 
 .pedidos-table td {
-  padding: 12px;
+  padding: 8px;
   color: #e2e8f0;
 }
 
@@ -1232,14 +1233,14 @@ onMounted(() => {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   font-weight: 600;
   transition: all 0.3s;
-  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.3);
-  margin-right: 12px;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+  margin-right: 8px;
 }
 
 .btn-graficos:hover {

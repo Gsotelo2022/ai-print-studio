@@ -146,12 +146,12 @@ const handleLogout = () => {
 }
 
 .admin-layout.sidebar-collapsed {
-  padding-left: 56px;
+  padding-left: 62px;
 }
 
 /* SIDEBAR */
 .admin-sidebar {
-  width: 208px;
+  width: 229px;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -165,20 +165,20 @@ const handleLogout = () => {
 }
 
 .admin-layout.sidebar-collapsed .admin-sidebar {
-  width: 56px;
+  width: 62px;
 }
 
 .sidebar-header {
-  padding: 19px;
+  padding: 21px;
   border-bottom: 1px solid var(--color-border);
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 11px;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-header {
-  padding: 16px 10px;
+  padding: 18px 11px;
 }
 
 .logo-container {
@@ -188,50 +188,50 @@ const handleLogout = () => {
 }
 
 .sidebar-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
   object-fit: cover;
 }
 
 .logo-container-expanded {
   display: flex;
   justify-content: center;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
 
 .sidebar-logo-expanded {
-  width: 80px;
-  height: 80px;
-  border-radius: 10px;
+  width: 88px;
+  height: 88px;
+  border-radius: 11px;
   object-fit: cover;
 }
 
 .sidebar-title {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.2rem;
-  letter-spacing: 1.6px;
+  font-size: 1.32rem;
+  letter-spacing: 1.8px;
   color: var(--color-primary);
   margin: 0;
   transition: all 0.2s;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-title {
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 .sidebar-subtitle {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
   margin: 3px 0 0 0;
 }
 
 .sidebar-toggle-btn {
   position: absolute;
-  bottom: 64px;
-  right: -12px;
-  width: 24px;
-  height: 24px;
+  bottom: 70px;
+  right: -13px;
+  width: 26px;
+  height: 26px;
   background: var(--color-primary);
   color: white;
   border: 2px solid var(--color-surface);
@@ -255,7 +255,7 @@ const handleLogout = () => {
 }
 
 .sidebar-toggle-btn .icon {
-  font-size: 0.72rem;
+  font-size: 0.79rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,27 +263,27 @@ const handleLogout = () => {
 
 .sidebar-nav {
   flex: 1;
-  padding: 13px 0;
+  padding: 14px 0;
   overflow-y: auto;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 9px;
+  padding: 9px 18px;
   color: var(--color-text-secondary);
   text-decoration: none;
   transition: all 0.2s;
   border-left: 2px solid transparent;
   overflow: hidden;
   white-space: nowrap;
-  font-size: 0.72rem;
+  font-size: 0.79rem;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-link {
   justify-content: center;
-  padding: 8px 0;
+  padding: 9px 0;
 }
 
 .sidebar-link:hover {
@@ -303,8 +303,8 @@ const handleLogout = () => {
 }
 
 .sidebar-link .icon {
-  font-size: 0.92rem;
-  width: 18px;
+  font-size: 1.01rem;
+  width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,28 +318,28 @@ const handleLogout = () => {
 
 .sidebar-link.logout {
   border-top: none;
-  padding: 8px 16px;
+  padding: 9px 18px;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-link.logout {
   justify-content: center;
-  padding: 8px 0;
+  padding: 9px 0;
 }
 
 /* MAIN CONTENT */
 .admin-content {
   flex: 1;
   padding: 0;
-  margin-left: 208px;
+  margin-left: 229px;
   transition: margin-left 0.3s ease;
 }
 
 .admin-layout.sidebar-collapsed .admin-content {
-  margin-left: 56px;
+  margin-left: 62px;
 }
 
 .admin-header {
-  padding: 19px 26px;
+  padding: 21px 29px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -353,12 +353,12 @@ const handleLogout = () => {
 .admin-user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   background: var(--color-primary);
   color: white;
@@ -366,7 +366,7 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.79rem;
 }
 
 .user-details {
@@ -376,41 +376,41 @@ const handleLogout = () => {
 .user-name {
   font-weight: 600;
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .user-email {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
   margin: 0;
 }
 
 .admin-view {
   flex: 1;
-  padding: 26px;
+  padding: 29px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .admin-sidebar {
-    width: 160px;
+    width: 176px;
   }
 
   .admin-content {
-    margin-left: 160px;
+    margin-left: 176px;
   }
 
   .sidebar-header {
-    padding: 16px 13px;
+    padding: 18px 14px;
   }
 
   .sidebar-link {
-    padding: 8px 13px;
-    font-size: 0.72rem;
+    padding: 9px 14px;
+    font-size: 0.79rem;
   }
 
   .admin-view {
-    padding: 16px;
+    padding: 18px;
   }
 }
 </style>

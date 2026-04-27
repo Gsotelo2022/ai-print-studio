@@ -2,7 +2,6 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 import requests
 import json
-import pyodbc
 
 app = Flask(__name__)
 CORS(app)
@@ -87,122 +86,94 @@ def limpiar_respuesta(texto):
 
 
 # =========================
-# DB
+# API LOCAL
 # =========================
-def obtener_productos_db():
+def obtener_productos_api():
     try:
-        conn = pyodbc.connect(
-            'DRIVER={ODBC Driver 17 for SQL Server};'
-            'SERVER=.\\SQLEXPRESS01;'
-            'DATABASE=PrendeteRock;'
-            'Trusted_Connection=yes;'
-        )
-
-        cursor = conn.cursor()
-
-        # 🔥 FIX: orden correcto de columnas y JOINs corregidos
-        query = """
-        SELECT 
-            p.id_producto,        -- 0
-            p.nombre,             -- 1
-            pv.precio,            -- 2
-            pv.id_variante,       -- 3
-            pa.nombre,            -- 4
-            pav.valor             -- 5
-        FROM Productos p
-        INNER JOIN Producto_Variantes pv ON p.id_producto = pv.id_producto
-        LEFT JOIN Variante_Atributos va ON pv.id_variante = va.id_variante
-        LEFT JOIN Producto_Atributo_Valores pav ON va.id_valor = pav.id_valor
-        LEFT JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
-        WHERE p.activo = 1 AND pv.activo = 1
-        ORDER BY p.id_producto
-        """
-
-        cursor.execute(query)
-        rows = cursor.fetchall()
-
+        response = requests.get('http://127.0.0.1:8000/api/productos')
+        if not response.ok:
+            print(f"[API ERROR] Status: {response.status_code}")
+            return []
+            
+        data = response.json()
+        if not data.get("success") or "data" not in data:
+            print("[API ERROR] Respuesta sin success o data")
+            return []
+            
         productos_map = {}
-        variantes_map = {}  # Para agrupar atributos por variante
-
-        for row in rows:
-            id_producto = row[0]
-            nombre = row[1]
-            precio = float(row[2]) if row[2] else 0
-
-            # 🔥 FIX CLAVE: índices correctos
-            id_variante = row[3]
-            attr_name = row[4]
-            attr_value = row[5]
-
+        for row in data["data"]:
+            id_producto = row["id_producto"]
+            nombre = row["nombre"]
+            
             if id_producto not in productos_map:
                 productos_map[id_producto] = {
                     "id_producto": id_producto,
                     "Detalle": nombre,
-                    "precio": precio,
+                    "precio": 0,
                     "talles": set(),
                     "colores": set(),
                     "variantes": []
                 }
-
-            # atributos
-            if attr_name == "Talle" and attr_value:
-                productos_map[id_producto]["talles"].add(attr_value)
-
-            if attr_name == "Color" and attr_value:
-                productos_map[id_producto]["colores"].add(attr_value)
-
-            # 🔥 Agrupar atributos por variante
-            if id_variante:
-                if id_variante not in variantes_map:
-                    variantes_map[id_variante] = {
-                        "id_variante": id_variante,
-                        "id_producto": id_producto,
-                        "talle": None,
-                        "color": None,
-                        "precio": precio
-                    }
                 
-                if attr_name == "Talle" and attr_value:
-                    variantes_map[id_variante]["talle"] = attr_value
-                elif attr_name == "Color" and attr_value:
-                    variantes_map[id_variante]["color"] = attr_value
-        
-        # Agregar variantes agrupadas a productos
-        for id_variante, variante_data in variantes_map.items():
-            id_producto = variante_data["id_producto"]
-            if id_producto in productos_map:
+            # Extraer de variantes y sus atributos
+            for v in row.get("variantes", []):
+                precio = v.get("precio", 0)
+                if productos_map[id_producto]["precio"] == 0 and precio > 0:
+                    productos_map[id_producto]["precio"] = precio
+                
+                # Extraer atributos de la variante
+                atributos = v.get("atributos", {})
+                talle = None
+                color = None
+                
+                # Buscar talle y color en los atributos
+                for attr_name, attr_data in atributos.items():
+                    valor = attr_data.get("valor") if isinstance(attr_data, dict) else attr_data
+                    
+                    if attr_name.lower() in ['talle', 'tamaño', 'size']:
+                        talle = valor
+                        if valor:
+                            productos_map[id_producto]["talles"].add(valor)
+                    elif attr_name.lower() in ['color', 'colour']:
+                        color = valor
+                        if valor:
+                            productos_map[id_producto]["colores"].add(valor)
+                    
                 productos_map[id_producto]["variantes"].append({
-                    "id_variante": variante_data["id_variante"],
-                    "talle": variante_data["talle"],
-                    "color": variante_data["color"],
-                    "precio": variante_data["precio"]
+                    "id_variante": v.get("id_variante"),
+                    "talle": talle,
+                    "color": color,
+                    "precio": precio
                 })
-
-        # =========================
-        # FORMATO FINAL
-        # =========================
+        
+        # Convertir sets a listas ordenadas
         productos = []
-
         for id_producto, datos in productos_map.items():
-            talles_lista = list(datos["talles"]) if datos["talles"] else ["U"]
-            colores_lista = list(datos["colores"]) if datos["colores"] else ["Unico"]
-
+            talles = sorted(list(datos["talles"]))
+            colores = sorted(list(datos["colores"]))
+            
+            # Si no hay talles/colores, usar valores por defecto
+            if not talles:
+                talles = ["Único"]
+            if not colores:
+                colores = ["Estándar"]
+            
             productos.append({
                 "id_producto": id_producto,
                 "Detalle": datos["Detalle"],
-                "precio": datos["precio"],
-                "talles": talles_lista,
-                "colores": colores_lista,
+                "precio": float(datos["precio"] or 15000),
+                "talles": talles,
+                "colores": colores,
                 "variantes": datos["variantes"]
             })
 
-        cursor.close()
-        conn.close()
-
+        print(f"[API INFO] Procesados {len(productos)} productos")
         return productos
 
     except Exception as e:
-        print("DB ERROR:", e)
+        print(f"[API ERROR] {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -212,7 +183,7 @@ def obtener_productos_db():
 @app.route("/productos-ia")
 def productos_ia():
     try:
-        productos = obtener_productos_db()
+        productos = obtener_productos_api()
 
         if not productos:
             return jsonify([])

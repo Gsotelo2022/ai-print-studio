@@ -52,7 +52,7 @@ class ActualizarCuponRequest(BaseModel):
 # ==================== ENDPOINTS ====================
 
 @app.get("/")
-async def root():
+def root():
     """Endpoint raíz - información de la API"""
     return {
         "mensaje": "Agente de Descuentos - Prendete Rock",
@@ -66,7 +66,7 @@ async def root():
     }
 
 @app.post("/calcular-descuento")
-async def calcular_descuento(pedido: Pedido):
+def calcular_descuento(pedido: Pedido):
     """
     Calcular el descuento total aplicable a un pedido
     
@@ -88,7 +88,7 @@ async def calcular_descuento(pedido: Pedido):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/validar-cupon")
-async def validar_cupon(request: ValidarCuponRequest):
+def validar_cupon(request: ValidarCuponRequest):
     """
     Validar si un cupón es válido sin aplicarlo
     
@@ -101,7 +101,7 @@ async def validar_cupon(request: ValidarCuponRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/descuentos-activos")
-async def descuentos_activos():
+def descuentos_activos():
     """
     Obtener lista de todos los descuentos activos
     
@@ -117,7 +117,7 @@ async def descuentos_activos():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
-async def health_check():
+def health_check():
     """Verificar estado del servicio"""
     try:
         # Intentar conectar a la BD
@@ -139,7 +139,7 @@ async def health_check():
 # ==================== GESTIÓN DE CUPONES ====================
 
 @app.get("/api/cupones")
-async def listar_cupones(incluir_inactivos: bool = False):
+def listar_cupones(incluir_inactivos: bool = False):
     """
     Listar todos los cupones
     
@@ -157,7 +157,7 @@ async def listar_cupones(incluir_inactivos: bool = False):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/cupones")
-async def crear_cupon(cupon: CrearCuponRequest):
+def crear_cupon(cupon: CrearCuponRequest):
     """
     Crear un nuevo cupón
     
@@ -184,7 +184,7 @@ async def crear_cupon(cupon: CrearCuponRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/cupones/{id_cupon}")
-async def actualizar_cupon(id_cupon: int, datos: ActualizarCuponRequest):
+def actualizar_cupon(id_cupon: int, datos: ActualizarCuponRequest):
     """
     Actualizar un cupón existente
     
@@ -205,7 +205,7 @@ async def actualizar_cupon(id_cupon: int, datos: ActualizarCuponRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/cupones/{id_cupon}")
-async def eliminar_cupon(id_cupon: int, permanente: bool = False):
+def eliminar_cupon(id_cupon: int, permanente: bool = False):
     """
     Eliminar un cupón
     
@@ -226,7 +226,7 @@ async def eliminar_cupon(id_cupon: int, permanente: bool = False):
 # ==================== ANÁLISIS E INTELIGENCIA ====================
 
 @app.get("/api/estadisticas")
-async def obtener_estadisticas():
+def obtener_estadisticas():
     """
     Obtener estadísticas de ventas y cupones para análisis
     """
@@ -240,7 +240,7 @@ async def obtener_estadisticas():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/cupones/proponer")
-async def proponer_cupones():
+def proponer_cupones():
     """
     Usar IA (Ollama) para proponer cupones estratégicos
     

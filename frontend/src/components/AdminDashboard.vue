@@ -95,14 +95,20 @@
 
       <!-- Vistas dinámicas -->
       <div class="admin-view">
-        <component :is="currentViewComponent" />
+        <GestionCupones
+          v-if="currentView === 'cupones'"
+          :propuestas-externas="propuestasIA"
+          :analisis-externo="analisisIA"
+          :cargando-i-a-externo="cargandoIA"
+        />
+        <component v-else :is="currentViewComponent" />
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import GestionPedidos from './GestionPedidos.vue'
 import DashboardView from './DashboardView.vue'
 import GestionProductos from './GestionProductos.vue'
@@ -116,6 +122,11 @@ const emit = defineEmits(['logout'])
 const isSidebarCollapsed = ref(true)
 const currentView = ref('pedidos')
 const userEmail = ref(localStorage.getItem('userEmail') || 'admin@prendeterock.com')
+
+// Estado agente IA cupones
+const propuestasIA = ref([])
+const analisisIA = ref('')
+const cargandoIA = ref(false)
 
 // Computed
 const userInitials = computed(() => {
@@ -131,7 +142,6 @@ const currentViewComponent = computed(() => {
     pedidos: GestionPedidos,
     productos: GestionProductos,
     clientes: GestionClientes,
-    cupones: GestionCupones,
     configuracion: ConfiguracionView
   }
   return views[currentView.value]
@@ -145,6 +155,30 @@ const toggleSidebar = () => {
 const handleLogout = () => {
   emit('logout')
 }
+
+const iniciarAgenteIA = async () => {
+  cargandoIA.value = true
+  propuestasIA.value = []
+  analisisIA.value = ''
+  try {
+    const response = await fetch('http://localhost:5003/api/cupones/proponer', {
+      method: 'POST'
+    })
+    const data = await response.json()
+    if (data.success && data.propuesta) {
+      propuestasIA.value = data.propuesta.cupones || []
+      analisisIA.value = data.propuesta.analisis || ''
+    }
+  } catch (error) {
+    console.warn('[IA Cupones] Agente no disponible:', error.message)
+  } finally {
+    cargandoIA.value = false
+  }
+}
+
+onMounted(() => {
+  iniciarAgenteIA()
+})
 </script>
 
 <style scoped>

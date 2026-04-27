@@ -4,9 +4,12 @@
     <div class="header-cupones">
       <h2>🎟️ Gestión de Cupones</h2>
       <div class="acciones-header">
-        <button @click="consultarIA" class="btn-ia" :disabled="cargandoIA">
-          <span v-if="!cargandoIA">🤖 Proponer Cupones con IA</span>
-          <span v-else>⏳ Analizando...</span>
+        <button @click="clickBotonIA" class="btn-ia" :disabled="esCargandoIA">
+          <span v-if="esCargandoIA" class="btn-ia-pensando">
+            <span class="dot-pulse"></span> Agente analizando datos
+          </span>
+          <span v-else-if="todasPropuestas.length > 0">🤖 Propuesta del agente</span>
+          <span v-else>🤖 Proponer Cupones con IA</span>
         </button>
         <button @click="abrirFormulario(null)" class="btn-nuevo">
           ➕ Crear Cupón
@@ -34,39 +37,30 @@
       </div>
     </div>
 
-    <!-- Propuestas de IA -->
-    <div v-if="propuestasIA && propuestasIA.length > 0" class="propuestas-ia">
-      <div class="propuestas-header">
-        <h3>💡 Propuestas Inteligentes</h3>
-        <p class="analisis-ia">{{ analisisIA }}</p>
-      </div>
-      <div class="propuestas-grid">
-        <div v-for="(propuesta, index) in propuestasIA" :key="index" class="propuesta-card">
-          <div class="propuesta-badge">IA Sugiere</div>
-          <h4>{{ propuesta.codigo }}</h4>
-          <p class="propuesta-desc">{{ propuesta.descripcion }}</p>
-          <div class="propuesta-detalles">
-            <span class="descuento">{{ propuesta.descuento }}% OFF</span>
-            <span class="duracion">{{ propuesta.duracion_dias }} días</span>
-          </div>
-          <p class="propuesta-objetivo">🎯 {{ propuesta.objetivo }}</p>
-          <button @click="crearDesdePropuesta(propuesta)" class="btn-aplicar">
-            ✓ Crear Este Cupón
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Lista de cupones -->
     <div class="lista-cupones">
       <div class="filtros">
-        <label>
-          <input type="checkbox" v-model="mostrarInactivos" @change="cargarCupones">
+        <label class="stat-valor">
+          <input type="checkbox" v-model="mostrarInactivos" @change="cargarCupones(true)">
           Mostrar cupones inactivos
         </label>
+        <div class="buscador-wrapper">
+          <span class="buscador-icon">🔍</span>
+          <input
+            v-model="busqueda"
+            type="text"
+            class="buscador-input"
+            placeholder="Buscar cupón por código o descripción..."
+          >
+          <button v-if="busqueda" @click="busqueda = ''" class="buscador-clear">✕</button>
+        </div>
       </div>
 
       <div v-if="cargando" class="loading">Cargando cupones...</div>
+
+      <div v-else-if="cuponesFiltrados.length === 0 && busqueda" class="empty-state">
+        <p>No se encontraron cupones para "{{ busqueda }}"</p>
+      </div>
       
       <div v-else-if="cupones.length === 0" class="empty-state">
         <p>No hay cupones disponibles</p>
@@ -76,7 +70,7 @@
       </div>
 
       <div v-else class="cupones-grid">
-        <div v-for="cupon in cupones" :key="cupon.id_cupon" 
+        <div v-for="cupon in cuponesFiltrados" :key="cupon.id_cupon" 
              :class="['cupon-card', { inactivo: !cupon.activo }]">
           
           <div class="cupon-header">
@@ -116,6 +110,49 @@
             <button @click="eliminarCupon(cupon)" class="btn-eliminar">
               🗑️ Eliminar
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal propuestas IA automático -->
+    <div v-if="mostrarModalPropuestas" class="modal-overlay" @click.self="mostrarModalPropuestas = false">
+      <div class="modal-content modal-propuestas">
+        <div class="modal-header">
+          <h3>💡 Propuestas del Agente IA</h3>
+          <button @click="mostrarModalPropuestas = false" class="btn-cerrar">✕</button>
+        </div>
+        <div class="modal-propuestas-body">
+          <div v-if="esCargandoIA" class="propuestas-pensando">
+            <div class="spinner-ia"></div>
+            <p>El agente está analizando datos y generando propuestas de cupones...</p>
+            <small>Esto puede tardar unos segundos</small>
+          </div>
+          <div v-else-if="todasPropuestas.length === 0" class="propuestas-pensando">
+            <p>⚠️ No se pudieron generar propuestas en este momento.</p>
+            <small>¿Ollama está corriendo?</small>
+          </div>
+          <div v-else>
+            <p class="analisis-ia-modal">{{ analisisActivo }}</p>
+            <div class="carousel-wrapper">
+              <button class="carousel-arrow left" @click="scrollCarousel('modal', -1)">&#8249;</button>
+              <div class="carousel-track" ref="trackModal">
+                <div v-for="(propuesta, index) in todasPropuestas" :key="index" class="propuesta-card">
+                  <div class="propuesta-badge">IA Sugiere</div>
+                  <h4>{{ propuesta.codigo }}</h4>
+                  <p class="propuesta-desc">{{ propuesta.descripcion }}</p>
+                  <div class="propuesta-detalles">
+                    <span class="descuento">{{ propuesta.descuento }}% OFF</span>
+                    <span class="duracion">{{ propuesta.duracion_dias }} días</span>
+                  </div>
+                  <p class="propuesta-objetivo">🎯 {{ propuesta.objetivo }}</p>
+                  <button @click="crearDesdePropuesta(propuesta)" class="btn-aplicar">
+                    ✓ Crear Este Cupón
+                  </button>
+                </div>
+              </div>
+              <button class="carousel-arrow right" @click="scrollCarousel('modal', 1)">&#8250;</button>
+            </div>
           </div>
         </div>
       </div>
@@ -201,11 +238,40 @@
       </div>
     </div>
   </div>
+
+  <!-- Toasts -->
+  <div class="toast-container">
+    <transition-group name="toast">
+      <div
+        v-for="t in toasts"
+        :key="t.id"
+        :class="['toast', t.tipo]"
+      >
+        <span class="toast-icon">{{ t.tipo === 'exito' ? '✅' : t.tipo === 'error' ? '❌' : '⚠️' }}</span>
+        <span class="toast-msg">{{ t.msg }}</span>
+      </div>
+    </transition-group>
+  </div>
 </template>
 
 <script>
 export default {
   name: 'GestionCupones',
+
+  props: {
+    propuestasExternas: {
+      type: Array,
+      default: () => []
+    },
+    analisisExterno: {
+      type: String,
+      default: ''
+    },
+    cargandoIAExterno: {
+      type: Boolean,
+      default: false
+    }
+  },
   
   data() {
     return {
@@ -218,7 +284,12 @@ export default {
       guardando: false,
       mostrarInactivos: false,
       mostrarFormulario: false,
+      mostrarModalPropuestas: false,
       cuponEditar: null,
+      busqueda: '',
+      toasts: [],
+      cuponesYaCargados: false, // Caché: solo cargar una vez
+      estadisticasYaCargadas: false, // Caché para estadísticas
       formulario: {
         codigo: '',
         descripcion: '',
@@ -232,8 +303,27 @@ export default {
   computed: {
     fechaMinima() {
       return new Date().toISOString().split('T')[0]
+    },
+    todasPropuestas() {
+      return this.propuestasExternas.length > 0 ? this.propuestasExternas : this.propuestasIA
+    },
+    analisisActivo() {
+      return this.analisisExterno || this.analisisIA
+    },
+    esCargandoIA() {
+      return this.cargandoIAExterno || this.cargandoIA
+    },
+    cuponesFiltrados() {
+      if (!this.busqueda.trim()) return this.cupones
+      const q = this.busqueda.toLowerCase()
+      return this.cupones.filter(c =>
+        c.codigo.toLowerCase().includes(q) ||
+        (c.descripcion && c.descripcion.toLowerCase().includes(q))
+      )
     }
   },
+
+  watch: {},
 
   mounted() {
     this.cargarCupones()
@@ -241,7 +331,13 @@ export default {
   },
 
   methods: {
-    async cargarCupones() {
+    async cargarCupones(forzarRecarga = false) {
+      // Sistema de caché: solo cargar si es la primera vez, cambia filtro o se fuerza
+      if (this.cuponesYaCargados && !forzarRecarga) {
+        console.log('✅ Cupones ya en caché, no se recargan')
+        return
+      }
+      
       this.cargando = true
       try {
         const response = await fetch(
@@ -250,31 +346,46 @@ export default {
         const data = await response.json()
         if (data.success) {
           this.cupones = data.cupones
+          this.cuponesYaCargados = true // Marcar como cargados
         }
       } catch (error) {
         console.error('Error cargando cupones:', error)
-        alert('Error al cargar cupones')
+        this.mostrarToast('Error al cargar cupones', 'error')
       } finally {
         this.cargando = false
       }
     },
 
-    async cargarEstadisticas() {
+    async cargarEstadisticas(forzarRecarga = false) {
+      // Caché para estadísticas
+      if (this.estadisticasYaCargadas && !forzarRecarga) {
+        return
+      }
+      
       try {
         const response = await fetch('http://localhost:5003/api/estadisticas')
         const data = await response.json()
         if (data.success) {
           this.estadisticas = data.estadisticas
+          this.estadisticasYaCargadas = true
         }
       } catch (error) {
         console.error('Error cargando estadísticas:', error)
       }
     },
 
+    clickBotonIA() {
+      if (this.todasPropuestas.length > 0) {
+        this.mostrarModalPropuestas = true
+      } else {
+        this.consultarIA()
+      }
+    },
+
     async consultarIA() {
       this.cargandoIA = true
       this.propuestasIA = []
-      
+
       try {
         const response = await fetch('http://localhost:5003/api/cupones/proponer', {
           method: 'POST'
@@ -285,31 +396,33 @@ export default {
           this.propuestasIA = data.propuesta.cupones || []
           this.analisisIA = data.propuesta.analisis || ''
           this.estadisticas = data.estadisticas
+          this.estadisticasYaCargadas = true // Actualizar caché de estadísticas
         } else {
-          alert(data.mensaje || 'No se pudieron generar propuestas. ¿Ollama está corriendo?')
+          this.mostrarToast(data.mensaje || 'No se pudieron generar propuestas. ¿Ollama está corriendo?', 'advertencia')
         }
       } catch (error) {
         console.error('Error consultando IA:', error)
-        alert('Error al consultar al agente IA')
+        this.mostrarToast('Error al consultar al agente IA', 'error')
       } finally {
         this.cargandoIA = false
       }
     },
 
     crearDesdePropuesta(propuesta) {
-      const fechaExpiracion = new Date()
-      fechaExpiracion.setDate(fechaExpiracion.getDate() + propuesta.duracion_dias)
-      
-      this.formulario = {
-        codigo: propuesta.codigo,
-        descripcion: propuesta.descripcion,
-        descuento_porcentaje: propuesta.descuento,
-        usos_maximos: 100,
-        fecha_expiracion: fechaExpiracion.toISOString().split('T')[0]
-      }
-      
-      this.cuponEditar = null
-      this.mostrarFormulario = true
+      this.mostrarModalPropuestas = false
+      this.$nextTick(() => {
+        const fechaExpiracion = new Date()
+        fechaExpiracion.setDate(fechaExpiracion.getDate() + propuesta.duracion_dias)
+        this.formulario = {
+          codigo: propuesta.codigo,
+          descripcion: propuesta.descripcion,
+          descuento_porcentaje: propuesta.descuento,
+          usos_maximos: 100,
+          fecha_expiracion: fechaExpiracion.toISOString().split('T')[0]
+        }
+        this.cuponEditar = null
+        this.mostrarFormulario = true
+      })
     },
 
     abrirFormulario(cupon) {
@@ -366,16 +479,16 @@ export default {
         const result = await response.json()
         
         if (response.ok && result.success) {
-          alert(result.mensaje)
+          this.mostrarToast(result.mensaje, 'exito')
           this.cerrarFormulario()
-          this.cargarCupones()
+          this.cargarCupones(true) // Forzar recarga porque se creó/editó cupón
           this.propuestasIA = [] // Limpiar propuestas después de crear
         } else {
-          alert(result.mensaje || 'Error al guardar cupón')
+          this.mostrarToast(result.mensaje || 'Error al guardar cupón', 'error')
         }
       } catch (error) {
         console.error('Error guardando cupón:', error)
-        alert('Error al guardar cupón')
+        this.mostrarToast('Error al guardar cupón', 'error')
       } finally {
         this.guardando = false
       }
@@ -399,13 +512,13 @@ export default {
         const result = await response.json()
         
         if (response.ok && result.success) {
-          this.cargarCupones()
+          this.cargarCupones(true) // Forzar recarga
         } else {
-          alert('Error al actualizar estado')
+          this.mostrarToast('Error al actualizar estado', 'error')
         }
       } catch (error) {
         console.error('Error:', error)
-        alert('Error al actualizar estado')
+        this.mostrarToast('Error al actualizar estado', 'error')
       }
     },
 
@@ -421,14 +534,14 @@ export default {
         const result = await response.json()
         
         if (response.ok && result.success) {
-          alert('Cupón eliminado')
-          this.cargarCupones()
+          this.mostrarToast('Cupón eliminado', 'exito')
+          this.cargarCupones(true) // Forzar recarga
         } else {
-          alert('Error al eliminar cupón')
+          this.mostrarToast('Error al eliminar cupón', 'error')
         }
       } catch (error) {
         console.error('Error:', error)
-        alert('Error al eliminar cupón')
+        this.mostrarToast('Error al eliminar cupón', 'error')
       }
     },
 
@@ -438,6 +551,20 @@ export default {
 
     formatearPrecio(precio) {
       return precio.toLocaleString('es-AR', { minimumFractionDigits: 0 })
+    },
+
+    scrollCarousel(which, direction) {
+      const refs = { propuestas: 'trackPropuestas', cupones: 'trackCupones', modal: 'trackModal' }
+      const el = this.$refs[refs[which]]
+      if (el) el.scrollBy({ left: direction * 340, behavior: 'smooth' })
+    },
+
+    mostrarToast(msg, tipo = 'info') {
+      const id = Date.now()
+      this.toasts.push({ id, msg, tipo })
+      setTimeout(() => {
+        this.toasts = this.toasts.filter(t => t.id !== id)
+      }, 3500)
     }
   }
 }
@@ -445,7 +572,7 @@ export default {
 
 <style scoped>
 .gestion-cupones {
-  padding: 20px;
+  padding: 14px;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -455,24 +582,24 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 
 .header-cupones h2 {
-  font-size: 26px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0;
 }
 
 .acciones-header {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .btn-ia, .btn-nuevo {
-  padding: 10px 20px;
+  padding: 7px 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
@@ -489,8 +616,28 @@ export default {
 }
 
 .btn-ia:disabled {
-  opacity: 0.6;
+  opacity: 0.75;
   cursor: wait;
+}
+
+.btn-ia-pensando {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  display: inline-block;
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
 }
 
 .btn-nuevo {
@@ -506,28 +653,28 @@ export default {
 /* Estadísticas */
 .estadisticas-rapidas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
 .stat-card {
   background: white;
-  padding: 20px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   text-align: center;
 }
 
 .stat-valor {
-  font-size: 32px;
+  font-size: 22px;
   font-weight: 700;
   color: #667eea;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 11px;
   color: #666;
   font-weight: 500;
 }
@@ -536,78 +683,80 @@ export default {
 .propuestas-ia {
   background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
   border: 2px solid #667eea;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 25px;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 18px;
 }
 
 .propuestas-header {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .propuestas-header h3 {
-  font-size: 20px;
-  margin: 0 0 10px 0;
+  font-size: 14px;
+  margin: 0 0 7px 0;
   color: #667eea;
 }
 
 .analisis-ia {
   color: #555;
-  font-size: 14px;
+  font-size: 11px;
   margin: 0;
   line-height: 1.6;
 }
 
 .propuestas-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
   gap: 15px;
 }
 
 .propuesta-card {
   background: white;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 14px;
+  border-radius: 7px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   position: relative;
   border: 2px solid #667eea;
+  min-width: 196px;
+  max-width: 196px;
+  flex-shrink: 0;
 }
 
 .propuesta-badge {
   position: absolute;
-  top: -10px;
-  right: 10px;
+  top: -7px;
+  right: 7px;
   background: #667eea;
   color: white;
-  padding: 4px 12px;
+  padding: 3px 8px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
 }
 
 .propuesta-card h4 {
-  font-size: 20px;
-  margin: 0 0 10px 0;
+  font-size: 14px;
+  margin: 0 0 7px 0;
   color: #333;
   font-family: 'Courier New', monospace;
 }
 
 .propuesta-desc {
   color: #666;
-  font-size: 14px;
-  margin: 0 0 12px 0;
+  font-size: 10px;
+  margin: 0 0 8px 0;
 }
 
 .propuesta-detalles {
   display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 7px;
+  margin-bottom: 8px;
 }
 
 .propuesta-detalles span {
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -622,15 +771,15 @@ export default {
 }
 
 .propuesta-objetivo {
-  font-size: 13px;
+  font-size: 10px;
   color: #555;
-  margin: 0 0 15px 0;
+  margin: 0 0 10px 0;
   font-style: italic;
 }
 
 .btn-aplicar {
   width: 100%;
-  padding: 10px;
+  padding: 7px;
   background: #667eea;
   color: white;
   border: none;
@@ -648,52 +797,164 @@ export default {
 /* Lista de cupones */
 .lista-cupones {
   background: white;
-  padding: 20px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
 }
 
 .filtros {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .filtros label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
+  font-size: 11px;
+}
+
+.buscador-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 252px;
+}
+
+.buscador-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.buscador-input {
+  width: 100%;
+  padding: 6px 22px 6px 26px;
+  border: 2px solid #e0e0e0;
+  border-radius: 14px;
+  font-size: 11px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.buscador-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.buscador-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
   font-size: 14px;
+  padding: 0;
+  line-height: 1;
+}
+
+.buscador-clear:hover {
+  color: #333;
 }
 
 .loading, .empty-state {
   text-align: center;
-  padding: 40px;
+  padding: 28px;
   color: #999;
+  font-size: 11px;
 }
 
 .btn-ia-secondary {
-  margin-top: 15px;
-  padding: 12px 24px;
+  margin-top: 10px;
+  padding: 8px 17px;
   background: #667eea;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
+  font-size: 11px;
 }
 
+/* Carousel */
+.carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 11px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 6px 3px 8px;
+  flex: 1;
+  scrollbar-width: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-arrow {
+  flex-shrink: 0;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  border: 2px solid #667eea;
+  background: white;
+  color: #667eea;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  z-index: 1;
+}
+
+.carousel-arrow:hover {
+  background: #667eea;
+  color: white;
+  transform: scale(1.1);
+}
+
+/* Cupones y propuestas: ancho fijo en carousel */
 .cupones-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  padding-right: 4px;
 }
 
 .cupon-card {
   background: white;
   border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 7px;
+  padding: 14px;
   transition: all 0.3s;
+}
+
+/* Ancho fijo solo para cards en carousel */
+.carousel-track .cupon-card,
+.carousel-track .propuesta-card {
+  min-width: 210px;
+  max-width: 210px;
+  flex-shrink: 0;
 }
 
 .cupon-card:hover {
@@ -710,11 +971,11 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .codigo-cupon {
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 700;
   font-family: 'Courier New', monospace;
   color: #333;
@@ -723,33 +984,33 @@ export default {
 .descuento-badge {
   background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
   color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 4px 8px;
+  border-radius: 14px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 10px;
 }
 
 .cupon-descripcion {
   color: #666;
-  font-size: 14px;
-  margin: 0 0 15px 0;
-  min-height: 40px;
+  font-size: 10px;
+  margin: 0 0 10px 0;
+  min-height: 28px;
 }
 
 .cupon-stats {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
-  padding: 12px;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
   background: #f8f8f8;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .cupon-stats .stat {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .cupon-stats .label {
@@ -764,16 +1025,16 @@ export default {
 
 .cupon-acciones {
   display: flex;
-  gap: 8px;
-  margin-top: 15px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .cupon-acciones button {
   flex: 1;
-  padding: 8px;
+  padding: 6px;
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 4px;
+  font-size: 9px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -808,6 +1069,57 @@ export default {
   background: #dc2626;
 }
 
+/* Modal propuestas IA */
+.modal-propuestas {
+  max-width: 546px;
+  width: 100%;
+}
+
+.modal-propuestas-body {
+  padding: 14px;
+}
+
+.propuestas-pensando {
+  text-align: center;
+  padding: 28px 14px;
+  color: #555;
+}
+
+.propuestas-pensando p {
+  font-size: 13px;
+  margin: 11px 0 4px;
+}
+
+.propuestas-pensando small {
+  color: #999;
+  font-size: 10px;
+}
+
+.analisis-ia-modal {
+  color: #555;
+  font-size: 11px;
+  margin: 0 0 11px 0;
+  line-height: 1.6;
+  padding: 7px 10px;
+  background: #f8f8ff;
+  border-left: 3px solid #667eea;
+  border-radius: 4px;
+}
+
+.spinner-ia {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -823,10 +1135,15 @@ export default {
   padding: 20px;
 }
 
+/* El formulario siempre por encima del modal de propuestas */
+.modal-overlay:has(.form-cupon) {
+  z-index: 1001;
+}
+
 .modal-content {
   background: white;
-  border-radius: 12px;
-  max-width: 600px;
+  border-radius: 8px;
+  max-width: 420px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -836,24 +1153,24 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 14px;
   border-bottom: 2px solid #f0f0f0;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 14px;
 }
 
 .btn-cerrar {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 17px;
   cursor: pointer;
   color: #999;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 21px;
+  height: 21px;
 }
 
 .btn-cerrar:hover {
@@ -861,27 +1178,27 @@ export default {
 }
 
 .form-cupon {
-  padding: 20px;
+  padding: 14px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: #333;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 .form-group input {
   width: 100%;
-  padding: 10px;
+  padding: 7px;
   border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 11px;
   box-sizing: border-box;
 }
 
@@ -897,31 +1214,31 @@ export default {
 
 .form-group small {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
   color: #999;
-  font-size: 12px;
+  font-size: 9px;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
+  gap: 10px;
 }
 
 .form-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 25px;
+  gap: 8px;
+  margin-top: 18px;
 }
 
 .form-actions button {
   flex: 1;
-  padding: 12px;
+  padding: 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 11px;
 }
 
 .btn-cancelar {
@@ -969,5 +1286,46 @@ export default {
   .form-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Toasts */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  min-width: 240px;
+  max-width: 360px;
+}
+
+.toast.exito    { background: #16a34a; }
+.toast.error    { background: #dc2626; }
+.toast.advertencia { background: #d97706; }
+.toast.info     { background: #2563eb; }
+
+.toast-icon { font-size: 16px; flex-shrink: 0; }
+
+.toast-enter-active { animation: toastIn 0.3s ease; }
+.toast-leave-active { animation: toastIn 0.25s ease reverse; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 </style>

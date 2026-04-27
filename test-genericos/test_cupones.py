@@ -27,7 +27,7 @@ def request_api(method, endpoint, data=None):
         
     req = urllib.request.Request(url, data=req_data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=120) as response:
             return json.loads(response.read().decode())
     except urllib.error.HTTPError as e:
         try:

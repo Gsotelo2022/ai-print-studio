@@ -417,10 +417,12 @@ def get_productos():
 
             # Obtener opciones de atributos disponibles para este producto
             cur.execute("""
-                SELECT DISTINCT 
+                SELECT 
+                    pa.id_atributo,
                     pa.nombre,
                     pa.tipo,
-                    paa.requerido
+                    paa.requerido,
+                    pa.orden
                 FROM Producto_Atributos_Asignados paa
                 INNER JOIN Producto_Atributos pa ON paa.id_atributo = pa.id_atributo
                 WHERE paa.id_producto = ?
@@ -429,20 +431,19 @@ def get_productos():
 
             opciones_atributos = []
             for orow in cur.fetchall():
-                attr_nombre, attr_tipo, requerido = orow
+                attr_id, attr_nombre, attr_tipo, requerido, _orden = orow
 
                 # Obtener valores disponibles
                 cur.execute("""
-                    SELECT DISTINCT pav.valor, pav.codigo_color
+                    SELECT pav.id_valor, pav.valor, pav.codigo_color, pav.orden
                     FROM Producto_Atributo_Valores pav
-                    INNER JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
-                    WHERE pa.nombre = ?
+                    WHERE pav.id_atributo = ?
                     ORDER BY pav.orden
-                """, (attr_nombre,))
+                """, (attr_id,))
 
                 valores = []
                 for vrow in cur.fetchall():
-                    val, color_code = vrow
+                    val_id, val, color_code, val_orden = vrow
                     valores.append({
                         "valor": val,
                         "codigo_color": color_code

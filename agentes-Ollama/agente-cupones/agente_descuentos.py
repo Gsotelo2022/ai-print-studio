@@ -10,9 +10,8 @@ class AgenteDescuentos:
     """
     
     def __init__(self):
-        self.conn = self.get_db_connection()
         self.max_descuento = 35  # Descuento máximo permitido (%)
-    
+
     def get_db_connection(self):
         """Conectar a SQL Server"""
         try:
@@ -377,7 +376,7 @@ class AgenteDescuentos:
             cursor = self.conn.cursor()
             
             # Verificar que el código no exista
-            cursor.execute("SELECT id FROM Cupones WHERE codigo = ?", cupon['codigo'])
+            cursor.execute("SELECT id_cupon FROM Cupones WHERE codigo = ?", cupon['codigo'])
             if cursor.fetchone():
                 return {
                     'success': False,
@@ -448,7 +447,7 @@ class AgenteDescuentos:
             if not campos:
                 return {'success': False, 'mensaje': 'No hay datos para actualizar'}
             
-            query = f"UPDATE Cupones SET {', '.join(campos)} WHERE id = ?"
+            query = f"UPDATE Cupones SET {', '.join(campos)} WHERE id_cupon = ?"
             valores.append(id_cupon)
             
             cursor.execute(query, *valores)
@@ -474,10 +473,10 @@ class AgenteDescuentos:
             
             if soft_delete:
                 # Solo desactivar
-                cursor.execute("UPDATE Cupones SET activo = 0 WHERE id = ?", id_cupon)
+                cursor.execute("UPDATE Cupones SET activo = 0 WHERE id_cupon = ?", id_cupon)
             else:
                 # Eliminar permanentemente
-                cursor.execute("DELETE FROM Cupones WHERE id = ?", id_cupon)
+                cursor.execute("DELETE FROM Cupones WHERE id_cupon = ?", id_cupon)
             
             self.conn.commit()
             
@@ -510,8 +509,8 @@ class AgenteDescuentos:
                     AVG(total) as ticket_promedio,
                     SUM(total) as ingresos_totales
                 FROM Pedidos 
-                WHERE fecha >= DATEADD(month, -1, GETDATE())
-                AND estado != 'cancelado'
+                WHERE fecha_pedido >= DATEADD(month, -1, GETDATE())
+                AND estado != 'cancelado' 
             """)
             row = cursor.fetchone()
             if row:
@@ -527,10 +526,11 @@ class AgenteDescuentos:
                     p.nombre,
                     COUNT(*) as cantidad_vendida,
                     SUM(dp.cantidad * dp.precio_unitario) as ingresos
-                FROM DetallesPedido dp
-                JOIN Productos p ON dp.id_producto = p.id
-                JOIN Pedidos ped ON dp.id_pedido = ped.id
-                WHERE ped.fecha >= DATEADD(month, -1, GETDATE())
+                FROM Pedidos_Items dp
+                JOIN Producto_Variantes pv ON dp.id_variante = pv.id_variante
+                JOIN Productos p ON pv.id_producto = p.id_producto
+                JOIN Pedidos ped ON dp.id_pedido = ped.id_pedido
+                WHERE ped.fecha_pedido >= DATEADD(month, -1, GETDATE())
                 GROUP BY p.nombre
                 ORDER BY cantidad_vendida DESC
             """)
@@ -550,10 +550,10 @@ class AgenteDescuentos:
                     COUNT(CASE WHEN total_pedidos = 1 THEN 1 END) as clientes_nuevos,
                     COUNT(CASE WHEN total_pedidos > 1 THEN 1 END) as clientes_recurrentes
                 FROM (
-                    SELECT id_cliente, COUNT(*) as total_pedidos
+                    SELECT id_usuario, COUNT(*) as total_pedidos
                     FROM Pedidos
-                    WHERE fecha >= DATEADD(month, -1, GETDATE())
-                    GROUP BY id_cliente
+                    WHERE fecha_pedido >= DATEADD(month, -1, GETDATE())
+                    GROUP BY id_usuario
                 ) subq
             """)
             row = cursor.fetchone()
@@ -648,7 +648,7 @@ Responde SOLO en formato JSON válido:
                     'stream': False,
                     'format': 'json'
                 },
-                timeout=30
+                timeout=240
             )
             
             if response.status_code == 200:

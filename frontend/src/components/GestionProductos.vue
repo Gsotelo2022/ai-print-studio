@@ -332,6 +332,7 @@ const { deleteProducto, updatePrecioProducto, loading } = useApi()
 const productos = ref([])
 const busqueda = ref('')
 const cargando = ref(false)
+const productosYaCargados = ref(false) // Cache: solo cargar una vez
 const error = ref(null)
 const productoEditando = ref(null)
 const precioTemporal = ref(null)
@@ -390,13 +391,19 @@ onMounted(async () => {
   await cargarProductos()
 })
 
-async function cargarProductos() {
+async function cargarProductos(forzarRecarga = false) {
+  // Sistema de caché: solo cargar si es la primera vez o si se fuerza
+  if (productosYaCargados.value && !forzarRecarga) {
+    console.log('✅ Productos ya en caché, no se recargan')
+    return
+  }
+  
   cargando.value = true
   error.value = null
   
   try {
     console.log('🔄 Cargando productos del agente IA...')
-    const response = await fetch('http://localhost:5001/productos-ia')
+    const response = await fetch('http://127.0.0.1:5001/productos-ia')
     
     if (!response.ok) {
       throw new Error(`Error HTTP ${response.status}`)
@@ -419,6 +426,7 @@ async function cargarProductos() {
       detalle: item.detalle || ''
     }))
     
+    productosYaCargados.value = true // Marcar como cargados
     console.log('✅ Productos cargados:', productos.value.length)
     
   } catch (err) {
@@ -765,7 +773,7 @@ function cerrarModalVariantes() {
   variantesAgregadas.value = []
   
   // Recargar productos para mostrar el nuevo producto con variantes
-  cargarProductos()
+  cargarProductos(true) // Forzar recarga porque se creó nuevo producto
 }
 
 async function agregarVariante() {

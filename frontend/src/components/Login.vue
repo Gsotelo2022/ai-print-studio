@@ -83,8 +83,6 @@ const loading = ref(false)
 
 async function handleSubmit() {
   try {
-    alert("🟡 ENTRO A LOGIN")
-
     const payload = {
       email: form.value.email,
       password: form.value.password,
@@ -92,15 +90,12 @@ async function handleSubmit() {
 
     const user = await loginUser(payload)
 
-    alert("RESPUESTA: " + JSON.stringify(user))
-
     console.log("RESPUESTA LOGIN:", user)
 
     emit('login-success', user)
 
   } catch (err) {
     console.error(err)
-    alert("ERROR: " + err.message)
   }
 }
 function onForgot() {

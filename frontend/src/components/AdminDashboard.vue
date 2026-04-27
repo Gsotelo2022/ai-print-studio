@@ -50,6 +50,14 @@
         </a>
         <a 
           href="#" 
+          @click.prevent="currentView = 'cupones'"
+          :class="['sidebar-link', { active: currentView === 'cupones' }]"
+        >
+          <span class="icon">🎟️</span>
+          <span v-if="!isSidebarCollapsed">Cupones</span>
+        </a>
+        <a 
+          href="#" 
           @click.prevent="currentView = 'configuracion'"
           :class="['sidebar-link', { active: currentView === 'configuracion' }]"
         >
@@ -99,6 +107,7 @@ import GestionPedidos from './GestionPedidos.vue'
 import DashboardView from './DashboardView.vue'
 import GestionProductos from './GestionProductos.vue'
 import GestionClientes from './GestionClientes.vue'
+import GestionCupones from './GestionCupones.vue'
 import ConfiguracionView from './ConfiguracionView.vue'
 
 const emit = defineEmits(['logout'])
@@ -122,6 +131,7 @@ const currentViewComponent = computed(() => {
     pedidos: GestionPedidos,
     productos: GestionProductos,
     clientes: GestionClientes,
+    cupones: GestionCupones,
     configuracion: ConfiguracionView
   }
   return views[currentView.value]
@@ -146,12 +156,12 @@ const handleLogout = () => {
 }
 
 .admin-layout.sidebar-collapsed {
-  padding-left: 80px;
+  padding-left: 62px;
 }
 
 /* SIDEBAR */
 .admin-sidebar {
-  width: 260px;
+  width: 229px;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -165,20 +175,20 @@ const handleLogout = () => {
 }
 
 .admin-layout.sidebar-collapsed .admin-sidebar {
-  width: 70px;
+  width: 62px;
 }
 
 .sidebar-header {
-  padding: 24px;
+  padding: 21px;
   border-bottom: 1px solid var(--color-border);
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 11px;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-header {
-  padding: 20px 12px;
+  padding: 18px 11px;
 }
 
 .logo-container {
@@ -188,50 +198,50 @@ const handleLogout = () => {
 }
 
 .sidebar-logo {
-  width: 45px;
-  height: 45px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
   object-fit: cover;
 }
 
 .logo-container-expanded {
   display: flex;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 .sidebar-logo-expanded {
-  width: 100px;
-  height: 100px;
-  border-radius: 12px;
+  width: 88px;
+  height: 88px;
+  border-radius: 11px;
   object-fit: cover;
 }
 
 .sidebar-title {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.5rem;
-  letter-spacing: 2px;
+  font-size: 1.32rem;
+  letter-spacing: 1.8px;
   color: var(--color-primary);
   margin: 0;
   transition: all 0.2s;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-title {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .sidebar-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
-  margin: 4px 0 0 0;
+  margin: 3px 0 0 0;
 }
 
 .sidebar-toggle-btn {
   position: absolute;
-  bottom: 80px;
-  right: -15px;
-  width: 30px;
-  height: 30px;
+  bottom: 70px;
+  right: -13px;
+  width: 26px;
+  height: 26px;
   background: var(--color-primary);
   color: white;
   border: 2px solid var(--color-surface);
@@ -255,7 +265,7 @@ const handleLogout = () => {
 }
 
 .sidebar-toggle-btn .icon {
-  font-size: 0.9rem;
+  font-size: 0.79rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,27 +273,27 @@ const handleLogout = () => {
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 0;
+  padding: 14px 0;
   overflow-y: auto;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  gap: 9px;
+  padding: 9px 18px;
   color: var(--color-text-secondary);
   text-decoration: none;
   transition: all 0.2s;
-  border-left: 3px solid transparent;
+  border-left: 2px solid transparent;
   overflow: hidden;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: 0.79rem;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-link {
   justify-content: center;
-  padding: 10px 0;
+  padding: 9px 0;
 }
 
 .sidebar-link:hover {
@@ -299,12 +309,12 @@ const handleLogout = () => {
 
 .admin-layout.sidebar-collapsed .sidebar-link.active {
   border-left-width: 0;
-  border-right: 3px solid var(--color-primary);
+  border-right: 2px solid var(--color-primary);
 }
 
 .sidebar-link .icon {
-  font-size: 1.15rem;
-  width: 22px;
+  font-size: 1.01rem;
+  width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,28 +328,28 @@ const handleLogout = () => {
 
 .sidebar-link.logout {
   border-top: none;
-  padding: 10px 20px;
+  padding: 9px 18px;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-link.logout {
   justify-content: center;
-  padding: 10px 0;
+  padding: 9px 0;
 }
 
 /* MAIN CONTENT */
 .admin-content {
   flex: 1;
   padding: 0;
-  margin-left: 260px;
+  margin-left: 229px;
   transition: margin-left 0.3s ease;
 }
 
 .admin-layout.sidebar-collapsed .admin-content {
-  margin-left: 70px;
+  margin-left: 62px;
 }
 
 .admin-header {
-  padding: 24px 32px;
+  padding: 21px 29px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -353,12 +363,12 @@ const handleLogout = () => {
 .admin-user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   background: var(--color-primary);
   color: white;
@@ -366,7 +376,7 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.79rem;
 }
 
 .user-details {
@@ -376,40 +386,41 @@ const handleLogout = () => {
 .user-name {
   font-weight: 600;
   margin: 0;
+  font-size: 1rem;
 }
 
 .user-email {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
   margin: 0;
 }
 
 .admin-view {
   flex: 1;
-  padding: 32px;
+  padding: 29px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .admin-sidebar {
-    width: 200px;
+    width: 176px;
   }
 
   .admin-content {
-    margin-left: 200px;
+    margin-left: 176px;
   }
 
   .sidebar-header {
-    padding: 20px 16px;
+    padding: 18px 14px;
   }
 
   .sidebar-link {
-    padding: 10px 16px;
-    font-size: 0.9rem;
+    padding: 9px 14px;
+    font-size: 0.79rem;
   }
 
   .admin-view {
-    padding: 20px;
+    padding: 18px;
   }
 }
 </style>

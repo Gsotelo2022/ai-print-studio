@@ -182,7 +182,7 @@ export function useApi() {
 
   // Actualizar estado de pago
   async function updateOrderPayment(idDetalle, nuevoPago) {
-    return put(`${baseApi}/admin/pedidos/${idDetalle}/pago`, { pago: nuevoPago })
+    return put(`${baseApi}/admin/pedidos/${idDetalle}/pago`, { estado_pago: nuevoPago })
   }
 
   // DELETE genérica

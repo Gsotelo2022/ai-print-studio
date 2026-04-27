@@ -1,17 +1,3 @@
-"""
-================================================================================
-AI PRINT STUDIO - BACKEND V2 (FastAPI)
-================================================================================
-Descripción: API REST con nueva estructura de BD (sistema de variantes)
-Fecha: 22 de abril de 2026
-Características:
-- Sistema de productos con variantes (Color + Talle)
-- Pedidos multi-item
-- Almacenamiento de imágenes en filesystem
-- Panel admin con métricas
-================================================================================
-"""
-
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -27,8 +13,89 @@ from PIL import Image
 from datetime import datetime
 from typing import Optional
 
+from rembg import remove  # ✔ corregido (solo una vez)
+from fastapi import FastAPI, HTTPException, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+
+# ============================================================
+# APP
+# ============================================================
+
 app = FastAPI(title="AI Print Studio API v2", version="2.0.0")
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+IMAGENES_IA_DIR = BASE_DIR / "backend" / "api" / "imagenes-generadas-con-IA"
+IMAGENES_IA_DIR.mkdir(parents=True, exist_ok=True)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/imagenes", StaticFiles(directory=str(IMAGENES_IA_DIR)), name="imagenes")
+
+def json_success(data):
+    return {"success": True, "data": data}
+
+@app.get("/api/health")
+def health():
+    return {"success": True}
+
+@app.post('/api/remove-background')
+async def remove_background(file: UploadFile = File(...)):
+    """Remover el fondo de una imagen usando rembg"""
+    try:
+        print(f'[remove-background] Recibido archivo: {file.filename}, tamaño aprox: {file.size}')
+        
+        # Leer el archivo de imagen
+        contents = await file.read()
+        print(f'[remove-background] Archivo leído, bytes: {len(contents)}')
+        
+        # Abrir la imagen con PIL
+        input_image = Image.open(io.BytesIO(contents))
+        print(f'[remove-background] Imagen abierta, tamaño: {input_image.size}')
+        
+        # Importar rembg aquí para evitar cargar el modelo si no se usa
+        print('[remove-background] Importando rembg...')
+        from rembg import remove
+        
+        # Remover el fondo
+        print('[remove-background] Iniciando remoción de fondo (esto puede tomar tiempo)...')
+        output_image = remove(input_image)
+        print('[remove-background] Fondo removido exitosamente')
+        
+        # Convertir la imagen a bytes
+        img_byte_arr = io.BytesIO()
+        output_image.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
+        
+        # Convertir a base64
+        print('[remove-background] Convirtiendo a base64...')
+        img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+        print(f'[remove-background] Base64 listo, tamaño: {len(img_base64)} caracteres')
+        
+        result = json_success({
+            "imagen_url": f"data:image/png;base64,{img_base64}",
+            "message": "Fondo removido exitosamente"
+        })
+        print('[remove-background] Respondiendo al cliente...')
+        return result
+    
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f'[remove-background] ERROR: {error_msg}')
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "error": f"Error al remover fondo: {str(e)}"}
+        )
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
@@ -43,7 +110,7 @@ app.add_middleware(
 )
 
 # Directorios de uploads
-BASE_DIR = Path(__file__).parent.parent.parent
+BASE_DIR = Path(__file__).parent.parent
 UPLOADS_DIR = BASE_DIR / 'uploads' / 'designs'
 THUMBNAILS_DIR = BASE_DIR / 'uploads' / 'thumbnails'
 
@@ -577,61 +644,124 @@ def serve_upload(folder: str, filename: str):
 # ============================================================
 # ENDPOINTS: PEDIDOS
 # ============================================================
+from fastapi import HTTPException
+from datetime import datetime
 
-@app.post('/api/create-order')
-def create_order(payload: CreateOrderIn):
-    """Crear pedido con múltiples items"""
+@app.post("/api/create-order")
+def create_order(payload: dict):
+    conn = None
+    cur = None
+
     try:
         conn = get_connection()
         cur = conn.cursor()
 
-        # Validar usuario
-        cur.execute("SELECT COUNT(*) FROM Usuarios WHERE id_usuario = ?", (payload.user_id,))
-        if cur.fetchone()[0] == 0:
-            raise HTTPException(404, {"success": False, "error": "Usuario no existe"})
+        # =========================
+        # 1. VALIDAR USER
+        # =========================
+        user_id = payload.get("user_id")
 
-        # Calcular totales
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id es obligatorio")
+
+        cur.execute(
+            "SELECT COUNT(*) FROM Usuarios WHERE id_usuario = ?",
+            (user_id,)
+        )
+
+        if cur.fetchone()[0] == 0:
+            raise HTTPException(status_code=404, detail="Usuario no existe")
+
+        # =========================
+        # 2. VALIDAR ITEMS
+        # =========================
+        items = payload.get("items")
+
+        if not items:
+            raise HTTPException(status_code=400, detail="items es obligatorio")
+
         total = 0
         items_data = []
 
-        for item in payload.items:
-            # Obtener precio de variante
+        for item in items:
+            id_variante = item.get("id_variante")
+            cantidad = item.get("cantidad", 1)
+
+            if not id_variante:
+                raise HTTPException(status_code=400, detail="id_variante faltante")
+
             cur.execute("""
                 SELECT pv.precio, pv.stock_actual, p.nombre
                 FROM Producto_Variantes pv
                 INNER JOIN Productos p ON pv.id_producto = p.id_producto
                 WHERE pv.id_variante = ? AND pv.activo = 1
-            """, (item.id_variante,))
+            """, (id_variante,))
 
             row = cur.fetchone()
+
             if not row:
-                raise HTTPException(400, {"success": False, "error": f"Variante {item.id_variante} no existe"})
+                raise HTTPException(status_code=400, detail="Variante no existe")
 
             precio, stock, nombre_prod = row
 
-            if stock < item.cantidad:
-                raise HTTPException(400, {"success": False, "error": f"Stock insuficiente para {nombre_prod}"})
+            if stock < cantidad:
+                raise HTTPException(status_code=400, detail="Stock insuficiente")
 
-            subtotal = precio * item.cantidad
+            subtotal = float(precio) * cantidad
             total += subtotal
 
             items_data.append({
-                "id_variante": item.id_variante,
-                "cantidad": item.cantidad,
+                "id_variante": id_variante,
+                "cantidad": cantidad,
                 "precio_unitario": float(precio),
-                "subtotal": float(subtotal),
-                "archivo_diseno": item.archivo_diseno,
-                "posicion_x": item.posicion_x,
-                "posicion_y": item.posicion_y,
-                "zoom": item.zoom
+                "subtotal": subtotal,
+                "archivo_diseno": item.get("archivo_diseno"),
+                "posicion_x": item.get("posicion_x", 0),
+                "posicion_y": item.get("posicion_y", 0),
+                "zoom": item.get("zoom", 1)
             })
 
-        # Generar número de orden
+        # =========================
+        # 3. GUARDAR ARCHIVOS DE DISEÑO
+        # =========================
+        for item in items_data:
+            archivo_url = item.get("archivo_diseno")
+            
+            if archivo_url:
+                # Guardar en Archivos_Diseno y obtener ID
+                # El prompt puede estar en 'prompt' o en 'notas_cliente'
+                prompt_usado = payload.get("prompt") or payload.get("notas_cliente") or "Diseño personalizado"
+                
+                cur.execute("""
+                    INSERT INTO Archivos_Diseno (
+                        id_usuario, nombre_original, nombre_almacenado, ruta_archivo,
+                        tipo_mime, es_generado_ia, prompt_usado, fecha_subida
+                    )
+                    OUTPUT INSERTED.id_archivo
+                    VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE())
+                """, (
+                    user_id,
+                    "diseno_generado.png",
+                    f"diseno_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                    archivo_url,
+                    "image/png",
+                    1,  # es_generado_ia
+                    prompt_usado
+                ))
+                
+                id_archivo = cur.fetchone()[0]
+                item["id_archivo"] = id_archivo
+            else:
+                item["id_archivo"] = None
+
+        # =========================
+        # 4. ORDEN
+        # =========================
         cur.execute("SELECT ISNULL(MAX(id_pedido), 0) FROM Pedidos")
         last_id = cur.fetchone()[0]
+
         numero_orden = f"ORD-{datetime.now().year}-{str(last_id + 1).zfill(5)}"
 
-        # Crear pedido
         cur.execute("""
             INSERT INTO Pedidos (
                 numero_orden, id_usuario, subtotal, total,
@@ -640,14 +770,18 @@ def create_order(payload: CreateOrderIn):
             OUTPUT INSERTED.id_pedido
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            numero_orden, payload.user_id, total, total,
-            payload.direccion_envio, payload.ciudad, 
-            payload.telefono_contacto, payload.notas_cliente
+            numero_orden,
+            user_id,
+            total,
+            total,
+            payload.get("direccion_envio"),
+            payload.get("ciudad"),
+            payload.get("telefono_contacto"),
+            payload.get("notas_cliente")
         ))
 
         id_pedido = cur.fetchone()[0]
 
-        # Crear items
         for item in items_data:
             cur.execute("""
                 INSERT INTO Pedidos_Items (
@@ -657,27 +791,164 @@ def create_order(payload: CreateOrderIn):
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                id_pedido, item["id_variante"], item["cantidad"], item["precio_unitario"],
-                item["archivo_diseno"], item["posicion_x"], item["posicion_y"], item["zoom"],
-                1 if item["archivo_diseno"] else 0
+                id_pedido,
+                item["id_variante"],
+                item["cantidad"],
+                item["precio_unitario"],
+                item["id_archivo"],  # Ahora es INT, no string
+                item["posicion_x"],
+                item["posicion_y"],
+                item["zoom"],
+                1 if item["id_archivo"] else 0
             ))
 
         conn.commit()
-        cur.close()
-        conn.close()
 
-        return json_success({
-            "order_id": id_pedido,
-            "numero_orden": numero_orden,
-            "total": float(total),
-            "items_count": len(items_data)
-        })
+        return {
+            "success": True,
+            "data": {
+                "order_id": id_pedido,
+                "numero_orden": numero_orden,
+                "total": total,
+                "items_count": len(items_data)
+            }
+        }
 
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        if conn:
+            conn.rollback()
+        raise e
+
     except Exception as e:
-        raise HTTPException(500, {"success": False, "error": str(e)})
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+            
+# ============================================================
+# ENDPOINTS: ADMIN - DASHBOARD
+# ============================================================
+
+@app.get('/api/admin/dashboard-stats')
+def admin_get_dashboard_stats(page: int = 1, limit: int = 10):
+    """Obtener estadísticas del dashboard"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # =========================
+        # STATS
+        # =========================
+        # Total usuarios
+        cur.execute("SELECT COUNT(*) as total FROM Usuarios")
+        total_usuarios = cur.fetchone()[0]
+
+        # Usuarios última semana
+        cur.execute("""
+            SELECT COUNT(*) as total 
+            FROM Usuarios 
+            WHERE fecha_registro >= DATEADD(day, -7, GETDATE())
+        """)
+        usuarios_semana = cur.fetchone()[0]
+
+        # Usuarios por tipo
+        cur.execute("""
+            SELECT tipo as tipo_usuario, COUNT(*) as total
+            FROM Usuarios
+            GROUP BY tipo
+        """)
+        usuarios_por_tipo = [{"tipo_usuario": row[0], "total": row[1]} for row in cur.fetchall()]
+
+        # =========================
+        # ACTIVIDAD (últimos 5 usuarios)
+        # =========================
+        cur.execute("""
+            SELECT TOP 5 
+                id_usuario,
+                Nombre as nombre,
+                '' as apellido,
+                tipo as tipo_usuario,
+                DATEDIFF(MINUTE, fecha_registro, GETDATE()) as minutos_desde_registro
+            FROM Usuarios
+            ORDER BY fecha_registro DESC
+        """)
+        actividad = []
+        for row in cur.fetchall():
+            actividad.append({
+                "id_usuario": row[0],
+                "nombre": row[1],
+                "apellido": row[2],
+                "tipo_usuario": row[3],
+                "minutos_desde_registro": row[4]
+            })
+
+        # =========================
+        # PAGINACIÓN
+        # =========================
+        offset = (page - 1) * limit
+        total_registros = total_usuarios
+        total_paginas = (total_registros + limit - 1) // limit  # ceil division
+
+        # =========================
+        # USUARIOS PAGINADOS
+        # =========================
+        cur.execute("""
+            SELECT 
+                id_usuario,
+                Nombre as nombre,
+                Email as email,
+                tipo as tipo_usuario,
+                fecha_registro
+            FROM Usuarios
+            ORDER BY id_usuario
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+        """, (offset, limit))
+
+        usuarios = []
+        for row in cur.fetchall():
+            fecha_registro = row[4]
+            if fecha_registro:
+                fecha_registro = fecha_registro.isoformat() if hasattr(fecha_registro, 'isoformat') else str(fecha_registro)
+            
+            usuarios.append({
+                "id_usuario": row[0],
+                "nombre": row[1],
+                "email": row[2],
+                "tipo_usuario": row[3],
+                "fecha_registro": fecha_registro
+            })
+
+        return {
+            "success": True,
+            "stats": {
+                "total_usuarios": total_usuarios,
+                "usuarios_semana": usuarios_semana,
+                "usuarios_por_tipo": usuarios_por_tipo
+            },
+            "usuarios": usuarios,
+            "actividad": actividad,
+            "paginacion": {
+                "pagina_actual": page,
+                "total_paginas": total_paginas,
+                "total_registros": total_registros,
+                "registros_por_pagina": limit
+            }
+        }
+
+    except Exception as e:
+        print(f"❌ Error en admin_get_dashboard_stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 # ============================================================
 # ENDPOINTS: ADMIN - PEDIDOS
@@ -733,18 +1004,16 @@ def admin_get_pedidos(filtro: str = 'todos'):
                     pi.precio_unitario,
                     prod.nombre AS producto_nombre,
                     pv.id_variante,
-                    pav_color.valor AS color,
-                    pav_talle.valor AS talle
+                    MAX(CASE WHEN pa.nombre = 'Color' THEN pav.valor END) AS color,
+                    MAX(CASE WHEN pa.nombre = 'Talle' THEN pav.valor END) AS talle
                 FROM Pedidos_Items pi
                 INNER JOIN Producto_Variantes pv ON pi.id_variante = pv.id_variante
                 INNER JOIN Productos prod ON pv.id_producto = prod.id_producto
-                LEFT JOIN Variante_Atributos va_color ON pv.id_variante = va_color.id_variante 
-                    AND va_color.id_atributo = (SELECT id_atributo FROM Producto_Atributos WHERE nombre = 'Color')
-                LEFT JOIN Producto_Atributo_Valores pav_color ON va_color.id_valor = pav_color.id_valor
-                LEFT JOIN Variante_Atributos va_talle ON pv.id_variante = va_talle.id_variante 
-                    AND va_talle.id_atributo = (SELECT id_atributo FROM Producto_Atributos WHERE nombre = 'Talle')
-                LEFT JOIN Producto_Atributo_Valores pav_talle ON va_talle.id_valor = pav_talle.id_valor
+                LEFT JOIN Variante_Atributos va ON pv.id_variante = va.id_variante
+                LEFT JOIN Producto_Atributo_Valores pav ON va.id_valor = pav.id_valor
+                LEFT JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
                 WHERE pi.id_pedido = ?
+                GROUP BY pi.cantidad, pi.precio_unitario, prod.nombre, pv.id_variante
             """, (id_pedido,))
             
             items = []
@@ -1177,3 +1446,116 @@ def admin_get_productos():
     except Exception as e:
         raise HTTPException(500, {"success": False, "error": str(e)})
 
+from pydantic import BaseModel
+import requests
+
+class ConsultaIA(BaseModel):
+    pregunta: str
+
+@app.post("/api/admin/consulta-ia")
+def consulta_ia(payload: ConsultaIA):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # 🔹 Contexto real de la BD (esto hace inteligente al agente)
+        cursor.execute("SELECT COUNT(*) FROM Usuarios")
+        total_usuarios = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM Usuarios 
+            WHERE fecha_registro >= DATEADD(day, -7, GETDATE())
+        """)
+        usuarios_semana = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT tipo, COUNT(*) 
+            FROM Usuarios 
+            GROUP BY tipo
+        """)
+        tipos = cursor.fetchall()
+
+        resumen_tipos = ", ".join([f"{t[0]}: {t[1]}" for t in tipos])
+
+        contexto = f"""
+        Total de usuarios: {total_usuarios}
+        Usuarios nuevos esta semana: {usuarios_semana}
+        Usuarios por tipo: {resumen_tipos}
+        """
+
+        prompt = f"""
+        Sos un asistente de administración de un sistema de ventas de ropa personalizada.
+
+        Datos actuales del sistema:
+        {contexto}
+
+        Respondé de forma clara y breve.
+
+        Pregunta:
+        {payload.pregunta}
+        """
+
+        response = requests.post("http://localhost:11434/api/generate", json={
+            "model": "qwen2.5:1.5b",
+            "prompt": prompt,
+            "stream": False
+        })
+
+        data = response.json()
+
+        return {
+            "success": True,
+            "respuesta": data["response"]
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# ============================================================
+# ENDPOINT: REMOVER FONDO CON IA (LOCAL)
+# ============================================================
+
+@app.post("/api/remove-background")
+async def remove_background(file: UploadFile = File(...)):
+    try:
+        from rembg import remove
+
+        # Validar tipo
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(400, {"success": False, "error": "Solo imágenes permitidas"})
+
+        # Leer imagen
+        input_bytes = await file.read()
+
+        # IA (rembg)
+        output_bytes = remove(input_bytes)
+
+        # 📁 Carpeta destino
+        carpeta = BASE_DIR / "backend" / "api" / "imagenes-generadas-con-IA"
+        carpeta.mkdir(parents=True, exist_ok=True)
+
+        # 🧾 Nombre único (mejorado para evitar colisiones)
+        nombre = f"sin_fondo_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+        ruta = carpeta / nombre
+
+        # 💾 Guardar archivo
+        with open(ruta, "wb") as f:
+            f.write(output_bytes)
+
+        # 🌐 URL
+        url = f"http://localhost:8000/api/imagen/{nombre}"
+
+        return {
+            "success": True,
+            "data": {
+                "imagen_url": url
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "error": str(e)}
+        )
+    

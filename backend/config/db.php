@@ -51,7 +51,6 @@ return (function () {
 
         return $conn;
     };
-
     return [
         'getConnection' => $getConnection,
         'config' => $config,

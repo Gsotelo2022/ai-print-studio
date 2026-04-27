@@ -1,5 +1,7 @@
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const path = require('path');
 
 const { generarImagen } = require('./generateImage')
 
@@ -27,6 +29,10 @@ app.post('/generar-imagen', async (req, res) => {
     })
   }
 })
+
+
+// 👇 AGREGAR ESTO
+app.use('/api/imagenes-generadas-con-IA', express.static(path.join(__dirname, 'api/imagenes-generadas-con-IA')));
 
 app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000')

@@ -7,7 +7,6 @@
 function getDBConnection(): PDO {
     // Intentar con ODBC Driver 17 for SQL Server (moderno)
     // Si falla, usaremos named pipes
-    
     $server   = '.';                  // Servidor local
     $database = 'PrendeteRock';       // BD existente
     $username = '';                   // Windows Auth - usuario actual

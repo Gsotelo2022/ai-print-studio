@@ -134,7 +134,7 @@
           :imagen-url="generatedImage"
           :producto="selectedProduct"
           :prompt="lastPrompt"
-          :user-id="currentUser?.id_usuario"
+          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
           @confirm-order="onConfirmOrder"
           @go-back="onPreviewPanelGoBack"
         />
@@ -223,13 +223,18 @@ async function cargarProductosDelAgente() {
     // App espera: { remera: { nombre: "Remera", talles: [...], colores: [...] }, ... }
     
     data.forEach(item => {
+      if (!item?.producto) return // 🔥 evita crash
+
       const key = item.producto.toLowerCase()
+
       productos[key] = {
+        id_producto: item.id_producto,
         nombre: item.producto,
         talles: item.talles || [],
         colores: item.colores || [],
-        precio: 12000, // TODO: obtener del agente o BD
-        tienesTalle: (item.talles && item.talles.length > 0)
+        variantes: item.variantes || [], // 🔥 IMPORTANTE
+        precio: item.precio || 12000,
+        tienesTalle: Array.isArray(item.talles) && item.talles.length > 0
       }
     })
     
@@ -340,29 +345,22 @@ function handleGoToLogin() {
 
 function onLoginSuccess(loginData) {
   console.log('Login exitoso:', loginData)
-  currentUser.value = loginData
+
+  currentUser.value = {
+    id_usuario: loginData.user_id, // 🔥 FIX
+    nombre: loginData.nombre,
+    email: loginData.email,
+    tipo: loginData.tipo
+  }
+
   userLogged.value = true
   showLoginForm.value = false
-  
-  // Detectar tipo de usuario (admin o cliente)
-  // El backend devuelve 'tipo' en minúscula con valores 'administrador' o 'cliente'
-  const tipoUsuario = (loginData.tipo || loginData.Tipo || 'cliente').toLowerCase()
+
+  const tipoUsuario = loginData.tipo?.toLowerCase()
   userType.value = (tipoUsuario === 'administrador' || tipoUsuario === 'admin') ? 'admin' : 'cliente'
-  
-  console.log('Tipo de usuario detectado:', userType.value, 'desde:', loginData.tipo)
-  
-  // Guardar email para mostrar en el panel admin
-  if (loginData.email || loginData.Email) {
-    localStorage.setItem('userEmail', loginData.email || loginData.Email)
-  }
-  
-  // Auto-mostrar dashboard después del login
-  imageSourceMode.value = null
-  generatedImage.value = null
-  selectedProduct.value = null
-  orderData.value = null
-  
-  // NUEVO: Cargar productos del agente después del login (solo para clientes)
+
+  console.log('🔑 Tipo de usuario:', tipoUsuario, '→', userType.value)
+
   if (userType.value === 'cliente') {
     cargarProductosDelAgente()
   }

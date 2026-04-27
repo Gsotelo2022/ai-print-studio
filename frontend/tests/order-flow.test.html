@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Print Studio - Test de Flujo de Pedido</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f1724 0%, #1a2332 100%);
+      color: #e6eef8;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 30px;
+      background: rgba(6, 182, 212, 0.1);
+      border-radius: 12px;
+      border: 2px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      color: #06b6d4;
+    }
+
+    .header p {
+      color: #9aa6b2;
+      font-size: 1.1rem;
+    }
+
+    .config-panel {
+      background: rgba(15, 23, 36, 0.8);
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .config-panel h2 {
+      color: #ffd54f;
+      margin-bottom: 16px;
+      font-size: 1.3rem;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      color: #9aa6b2;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #e6eef8;
+      font-size: 14px;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #06b6d4;
+    }
+
+    .btn {
+      padding: 14px 32px;
+      background: #06b6d4;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .btn:hover {
+      background: #0891b2;
+      transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .output {
+      background: #000;
+      padding: 24px;
+      border-radius: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 600px;
+      overflow-y: auto;
+      margin-top: 24px;
+      border: 2px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .output::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .output::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .output::-webkit-scrollbar-thumb {
+      background: #06b6d4;
+      border-radius: 4px;
+    }
+
+    .log-success {
+      color: #22c55e;
+    }
+
+    .log-error {
+      color: #ef4444;
+    }
+
+    .log-warning {
+      color: #ffd54f;
+    }
+
+    .log-info {
+      color: #06b6d4;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .status.running {
+      background: rgba(6, 182, 212, 0.2);
+      color: #06b6d4;
+    }
+
+    .status.success {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+    }
+
+    .status.error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+
+    .warning-box {
+      background: rgba(255, 213, 79, 0.1);
+      border-left: 4px solid #ffd54f;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+
+    .warning-box strong {
+      color: #ffd54f;
+      display: block;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧪 Test de Flujo de Pedido</h1>
+      <p>AI Print Studio - Order Flow Testing</p>
+    </div>
+
+    <div class="warning-box">
+      <strong>⚠️ IMPORTANTE:</strong>
+      Antes de ejecutar, asegúrate de que el backend FastAPI esté corriendo en <code>http://localhost:8000</code>
+      y que tengas datos de prueba válidos en la base de datos.
+    </div>
+
+    <div class="config-panel">
+      <h2>⚙️ Configuración del Test</h2>
+      
+      <div class="form-group">
+        <label for="userId">ID de Usuario de Prueba:</label>
+        <input type="number" id="userId" value="1" placeholder="Ej: 1">
+      </div>
+
+      <div class="form-group">
+        <label for="varianteId">ID de Variante de Producto:</label>
+        <input type="number" id="varianteId" value="1" placeholder="Ej: 1">
+      </div>
+
+      <div class="form-group">
+        <label for="productName">Nombre del Producto:</label>
+        <input type="text" id="productName" value="Remera" placeholder="Ej: Remera">
+      </div>
+
+      <div class="form-group">
+        <label for="talle">Talle:</label>
+        <input type="text" id="talle" value="M" placeholder="Ej: M">
+      </div>
+
+      <div class="form-group">
+        <label for="color">Color:</label>
+        <input type="text" id="color" value="Negro" placeholder="Ej: Negro">
+      </div>
+
+      <div class="form-group">
+        <label for="cantidad">Cantidad:</label>
+        <input type="number" id="cantidad" value="1" min="1" max="10">
+      </div>
+
+      <button id="runTestBtn" class="btn">▶️ Ejecutar Test</button>
+    </div>
+
+    <div id="statusContainer"></div>
+    <div id="output" class="output"></div>
+  </div>
+
+  <script>
+    // Cargar el archivo de test
+    const scriptElement = document.createElement('script');
+    scriptElement.src = './order-flow.test.js';
+    scriptElement.onload = () => {
+      console.log('✅ Test script cargado correctamente');
+    };
+    document.head.appendChild(scriptElement);
+
+    const output = document.getElementById('output');
+    const statusContainer = document.getElementById('statusContainer');
+    const runTestBtn = document.getElementById('runTestBtn');
+
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `log-${type}`;
+      div.textContent = message;
+      output.appendChild(div);
+      output.scrollTop = output.scrollHeight;
+      console.log(message);
+    }
+
+    function setStatus(message, type) {
+      statusContainer.innerHTML = `<div class="status ${type}">${message}</div>`;
+    }
+
+    function clearOutput() {
+      output.innerHTML = '';
+    }
+
+    // Override console.log para mostrar en la UI
+    const originalLog = console.log;
+    console.log = function(...args) {
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      
+      let type = 'info';
+      if (message.includes('✅') || message.includes('✓')) type = 'success';
+      if (message.includes('❌') || message.includes('Error')) type = 'error';
+      if (message.includes('⚠️') || message.includes('NOTA')) type = 'warning';
+      
+      log(message, type);
+      originalLog.apply(console, args);
+    };
+
+    async function runTest() {
+      clearOutput();
+      setStatus('⏳ Ejecutando tests...', 'running');
+      runTestBtn.disabled = true;
+
+      try {
+        // Obtener configuración del formulario
+        const config = {
+          userId: parseInt(document.getElementById('userId').value),
+          varianteId: parseInt(document.getElementById('varianteId').value),
+          productName: document.getElementById('productName').value,
+          talle: document.getElementById('talle').value,
+          color: document.getElementById('color').value,
+          cantidad: parseInt(document.getElementById('cantidad').value)
+        };
+
+        // Actualizar configuración del test
+        if (typeof TEST_USER_ID !== 'undefined') {
+          window.TEST_USER_ID = config.userId;
+        }
+
+        if (typeof TEST_PRODUCT_DATA !== 'undefined') {
+          window.TEST_PRODUCT_DATA = {
+            key: config.productName.toLowerCase(),
+            id_producto: 1,
+            id_variante: config.varianteId,
+            nombre: config.productName,
+            talle: config.talle,
+            color: config.color,
+            cantidad: config.cantidad,
+            precio: 12000,
+            precioTotal: 12000 * config.cantidad,
+            tienesTalle: true
+          };
+        }
+
+        log('🚀 Iniciando tests con la configuración proporcionada...', 'info');
+        log(`   User ID: ${config.userId}`, 'info');
+        log(`   Variante ID: ${config.varianteId}`, 'info');
+        log(`   Producto: ${config.productName} (${config.color} - ${config.talle})`, 'info');
+        log(`   Cantidad: ${config.cantidad}`, 'info');
+        log('', 'info');
+
+        // Ejecutar el test
+        const success = await runAllTests();
+
+        if (success) {
+          setStatus('✅ Tests completados exitosamente', 'success');
+        } else {
+          setStatus('❌ Tests fallaron', 'error');
+        }
+      } catch (error) {
+        console.error('❌ Error ejecutando tests:', error);
+        setStatus('❌ Error ejecutando tests', 'error');
+      } finally {
+        runTestBtn.disabled = false;
+      }
+    }
+
+    runTestBtn.addEventListener('click', runTest);
+
+    // Log inicial
+    log('🎉 Test de flujo de pedido cargado', 'success');
+    log('⚙️ Configura los parámetros y presiona "Ejecutar Test"', 'info');
+  </script>
+</body>
+</html>

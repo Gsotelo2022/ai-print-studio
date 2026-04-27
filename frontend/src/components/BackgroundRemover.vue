@@ -36,10 +36,13 @@
           <div class="option-item">
             <button @click="removeBackground" class="btn btn-option" :disabled="loading">
               <span v-if="!loading">✨ REMOVER FONDO</span>
-              <span v-else>⏳ PROCESANDO (puede tomar hasta 1 minuto)...</span>
+              <span v-else>⏳ PROCESANDO (puede tomar 1-3 minutos)...</span>
             </button>
-            <p class="option-description" v-if="!loading">Elimina el fondo de la imagen para mejor resultado</p>
-            <p class="option-description" v-else style="color: #ffd54f;">⏳ Usando IA para remover fondo. Espera...</p>
+            <p class="option-description" v-if="!loading">Elimina el fondo de la imagen usando IA</p>
+            <p class="option-description" v-else style="color: #ffd54f;">
+              ⏳ Procesando con IA... La primera vez puede tardar más mientras descarga el modelo.
+              <br>Por favor espera sin cerrar esta ventana.
+            </p>
           </div>
 
           <div class="option-item">
@@ -118,7 +121,7 @@ watch(() => props.imagenUrl, (newUrl) => {
 function removeBackground() {
   loading.value = true
   hasChanges.value = false
-  status.value = '⏳ Removiendo fondo con IA (esto puede tomar 10-60 segundos)...'
+  status.value = '⏳ Removiendo fondo con IA (10-180 segundos aprox. La primera vez tarda más)...'
   statusType.value = 'info'
 
   console.log('[removeBackground] Iniciando, imagen URL:', imagenUrlActual.value)
@@ -152,9 +155,17 @@ function sendToRemoveBackground(blob) {
   
   console.log('[removeBackground] Enviando POST a /api/remove-background')
   
+  // Crear un AbortController para poder cancelar si es necesario
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+    handleRemoveBackgroundError(new Error('Timeout: El proceso tardó más de 5 minutos. Intenta con una imagen más pequeña.'))
+  }, 300000) // 5 minutos de timeout
+  
   fetch('http://localhost:8000/api/remove-background', {
     method: 'POST',
-    body: formData
+    body: formData,
+    signal: controller.signal
   })
     .then(response => {
       console.log('[removeBackground] Respuesta status:', response.status)
@@ -167,6 +178,7 @@ function sendToRemoveBackground(blob) {
       return response.json()
     })
     .then(data => {
+      clearTimeout(timeoutId) // Limpiar el timeout
       console.log('[removeBackground] Datos recibidos:', data)
       
       if (data.success || data.data?.imagen_url) {
@@ -190,6 +202,7 @@ function sendToRemoveBackground(blob) {
       }
     })
     .catch(error => {
+      clearTimeout(timeoutId) // Limpiar el timeout también en caso de error
       console.error('[removeBackground] Error:', error)
       handleRemoveBackgroundError(error)
     })
@@ -197,9 +210,26 @@ function sendToRemoveBackground(blob) {
 
 function handleRemoveBackgroundError(error) {
   loading.value = false
-  status.value = `❌ Error: ${error.message || 'No se pudo remover el fondo'}`
+  
+  // Mejorar el mensaje de error según el tipo
+  let errorMessage = 'No se pudo remover el fondo'
+  
+  if (error.name === 'AbortError') {
+    errorMessage = 'Timeout: El proceso tardó demasiado (>5 min)'
+  } else if (error.message.includes('Failed to fetch')) {
+    errorMessage = 'Error de conexión. ¿Está corriendo el servidor FastAPI?'
+  } else if (error.message) {
+    errorMessage = error.message
+  }
+  
+  status.value = `❌ Error: ${errorMessage}`
   statusType.value = 'error'
   console.error('[removeBackground] Error final:', error)
+  
+  // Mantener el mensaje de error visible por más tiempo
+  setTimeout(() => {
+    status.value = ''
+  }, 10000)
 }
 
 function rotatImage() {

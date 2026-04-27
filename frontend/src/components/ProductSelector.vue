@@ -77,7 +77,7 @@
           <button
             v-for="t in talles"
             :key="t"
-            @click="talle = t"
+            @click="selectTalle(t)"
             class="btn btn-variant"
             :class="{ 'btn-active': talle === t }"
           >
@@ -93,7 +93,7 @@
           <button
             v-for="c in colores"
             :key="c"
-            @click="color = c"
+            @click="selectColor(c)"
             class="btn btn-variant"
             :class="{ 'btn-active': color === c }"
           >
@@ -133,94 +133,142 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-// --- Props: datos que recibe del padre (App.vue) ---
-// defineProps declara qué datos espera este componente
+// ============================
+// PROPS Y EVENTOS
+// ============================
 const props = defineProps({
-  productos: {
-    type: Object,
-    required: true,
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
-  loaded: {
-    type: Boolean,
-    default: false,
-  },
+  productos: { type: Object, required: true },
+  loading: { type: Boolean, default: false },
+  loaded: { type: Boolean, default: false }
 })
 
-// --- Eventos ---
 const emit = defineEmits(['product-selected', 'go-back'])
 
-// --- Estado local ---
-const selectedKey = ref(null)   // Key del producto seleccionado ('camiseta', 'taza', etc.)
-const talle = ref('M')
-const color = ref('Blanco')
+// ============================
+// ESTADO LOCAL
+// ============================
+const selectedKey = ref(null)
+const talle = ref(null)
+const color = ref(null)
 const cantidad = ref(1)
 
-// Iconos para cada producto
+// ============================
+// ICONOS DE PRODUCTOS
+// ============================
 const productIcons = {
+  remera: '👕',
   camiseta: '👕',
-  taza:     '☕',
+  taza: '☕',
+  buzo: '🧥',
   sudadera: '🧥',
-  cojin:    '🛋️',
-  mochila:  '🎒',
-  gorra:    '🧢',
-  buzo:     '🧥',
-  musculosa: '👕',
-  almohada: '🛋️',
+  gorra: '🧢',
+  bolsa: '👜',
+  mochila: '🎒',
+  cojin: '🛋️'
 }
 
-// --- Computed ---
-// El producto actualmente seleccionado (objeto completo)
-const currentProduct = computed(() => {
-  return selectedKey.value ? props.productos[selectedKey.value] : null
-})
-
-// Talles disponibles para el producto actual (dinámicos del agente)
-const talles = computed(() => {
-  return currentProduct.value?.talles || []
-})
-
-// Colores disponibles para el producto actual (dinámicos del agente)
+// ============================
+// OPCIONES DISPONIBLES
+// ============================
+const talles = ['S', 'M', 'L', 'XL', 'XXL']
 const colores = computed(() => {
-  return currentProduct.value?.colores || []
+  if (!selectedKey.value || !props.productos[selectedKey.value]) return []
+  return props.productos[selectedKey.value].colores || ['Blanco', 'Negro']
 })
 
-// Precio total = precio unitario × cantidad
+// ============================
+// COMPUTED PROPERTIES
+// ============================
+const currentProduct = computed(() => {
+  if (!selectedKey.value) return null
+  return props.productos[selectedKey.value] || null
+})
+
 const precioTotal = computed(() => {
   if (!currentProduct.value) return 0
   return currentProduct.value.precio * cantidad.value
 })
 
-// ¿Se puede continuar? (debe haber producto, y talle si aplica)
 const canContinue = computed(() => {
-  if (!currentProduct.value) return false
-  if (currentProduct.value.tienesTalle && !talle.value) return false
-  return true
+  if (!selectedKey.value || !color.value) return false
+  if (currentProduct.value?.tienesTalle && !talle.value) return false
+  return cantidad.value > 0
 })
 
-// --- Métodos ---
+// ============================
+// MÉTODOS
+// ============================
 function selectProduct(key) {
   selectedKey.value = key
-  // Resetear variantes al cambiar producto
-  talle.value = talles.value.length > 0 ? talles.value[0] : null
-  color.value = colores.value.length > 0 ? colores.value[0] : null
+  // Resetear selección de variantes
+  talle.value = null
+  color.value = null
   cantidad.value = 1
 }
 
+function selectTalle(t) {
+  talle.value = t
+}
+
+function selectColor(c) {
+  color.value = c
+}
+
 function confirmSelection() {
-  // Emitir al padre toda la info del producto seleccionado
-  emit('product-selected', {
+  if (!canContinue.value) return
+
+  // Buscar la variante correcta
+  let varianteEncontrada = null
+  const producto = currentProduct.value
+
+  if (producto?.variantes && producto.variantes.length > 0) {
+    // Buscar variante que coincida con talle y color seleccionados
+    varianteEncontrada = producto.variantes.find(v => {
+      // Las variantes vienen con talle y color directos (no dentro de atributos)
+      const talleCoincide = !producto.tienesTalle || 
+        !talle.value ||
+        v.talle === talle.value
+      
+      const colorCoincide = 
+        !color.value ||
+        v.color === color.value
+      
+      return talleCoincide && colorCoincide
+    })
+
+    console.log('🔍 Buscando variante:', {
+      talleRequerido: talle.value,
+      colorRequerido: color.value,
+      variantesDisponibles: producto.variantes.length,
+      varianteEncontrada: varianteEncontrada
+    })
+  }
+
+  if (!varianteEncontrada) {
+    console.error('❌ No se encontró variante para:', { 
+      talle: talle.value, 
+      color: color.value,
+      variantes: producto?.variantes 
+    })
+    alert('No se encontró una variante con el talle y color seleccionados')
+    return
+  }
+
+  const productData = {
     key: selectedKey.value,
-    nombre: currentProduct.value.nombre,
-    precio: currentProduct.value.precio,
-    talle: currentProduct.value.tienesTalle ? talle.value : null,
+    id_producto: producto?.id_producto,
+    id_variante: varianteEncontrada.id_variante,
+    nombre: producto?.nombre || 'Producto',
+    talle: talle.value,
     color: color.value,
     cantidad: cantidad.value,
+    precio: producto?.precio || 0,
     precioTotal: precioTotal.value,
-  })
+    tienesTalle: producto?.tienesTalle || false
+  }
+
+  console.log('✅ Producto confirmado:', productData)
+  emit('product-selected', productData)
 }
 
 function goBack() {
@@ -231,6 +279,7 @@ function formatPrice(price) {
   return new Intl.NumberFormat('es-AR').format(price)
 }
 </script>
+
 <style scoped>
 :root {
   --color-primary: #06b6d4;
@@ -295,8 +344,8 @@ function formatPrice(price) {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
   margin-bottom: 32px;
 }
 
@@ -305,11 +354,11 @@ function formatPrice(price) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px;
+  gap: 4px;
+  padding: 10px;
   background: var(--color-surface);
   border: 2px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -328,13 +377,14 @@ function formatPrice(price) {
 }
 
 .product-icon {
-  font-size: 2.5rem;
+  font-size: 1.6rem;
 }
 
 .product-name {
   font-weight: 600;
   color: var(--color-text);
   text-align: center;
+  font-size: 0.85rem;
   font-size: 0.95rem;
 }
 

@@ -67,10 +67,10 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useApi } from '../composables/useApi'
 
 const emit = defineEmits(['login-success', 'go-to-register', 'forgot-password'])
 
-import { useApi } from '../composables/useApi'
 const { loginUser } = useApi()
 
 const form = ref({
@@ -82,30 +82,27 @@ const form = ref({
 const loading = ref(false)
 
 async function handleSubmit() {
-  if (!form.value.email || !form.value.password) {
-    alert('Completá email y contraseña')
-    return
-  }
-
-  loading.value = true
   try {
+    alert("🟡 ENTRO A LOGIN")
+
     const payload = {
       email: form.value.email,
       password: form.value.password,
     }
+
     const user = await loginUser(payload)
-    // Emitir usuario retornado por backend
+
+    alert("RESPUESTA: " + JSON.stringify(user))
+
+    console.log("RESPUESTA LOGIN:", user)
+
     emit('login-success', user)
-    form.value.password = ''
+
   } catch (err) {
-    console.error('Error detallado en login:', err)
-    const errorMessage = err.message || 'No se pudo conectar con el servidor. ¿Está el backend funcionando?'
-    alert(`Error de login: ${errorMessage}`)
-  } finally {
-    loading.value = false
+    console.error(err)
+    alert("ERROR: " + err.message)
   }
 }
-
 function onForgot() {
   emit('forgot-password')
 }

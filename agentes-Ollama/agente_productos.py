@@ -5,32 +5,28 @@ import json
 import pyodbc
 
 app = Flask(__name__)
-CORS(app)  # Permitir peticiones desde el frontend
+CORS(app)
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "qwen2.5:1.5b"  # Optimizado para i3 + 16GB RAM
+MODEL = "qwen2.5:1.5b"
 
-# =========================
-# CONFIGURACIÓN
-# =========================
-LIMITE_PRODUCTOS = None  # Cambiar a None para procesar TODOS los productos
-                         # Recomendado: 10-20 para i3, 50+ para i5/i7
+LIMITE_PRODUCTOS = None
 
 
 # =========================
-# PROMPT OPTIMIZADO PARA i3
+# PROMPT
 # =========================
 def construir_prompt(productos_json):
-    # NO reducir: procesar todos los productos que vienen de BD (limitados en query)
     return f"""
-Agrupa estos productos JSON por "Detalle".
-Devuelve SOLO JSON válido en este formato:
-[{{"producto":"Nombre","talles":["S","M"],"colores":["Rojo","Azul"]}}]
+Convierte estos productos JSON al formato de salida deseado.
+Cada producto ya tiene sus talles y colores agrupados.
 
-Datos ({len(productos_json)} productos):
+Devuelve SOLO JSON válido.
+
+Datos:
 {json.dumps(productos_json, ensure_ascii=False)}
 
-RESPONDE SOLO EL JSON, SIN TEXTO ADICIONAL.
+RESPONDE SOLO JSON.
 """
 
 
@@ -39,7 +35,6 @@ RESPONDE SOLO EL JSON, SIN TEXTO ADICIONAL.
 # =========================
 def llamar_ollama(prompt):
     try:
-        print("[OLLAMA] Enviando petición a http://localhost:11434...")
         response = requests.post(
             OLLAMA_URL,
             json={
@@ -47,79 +42,47 @@ def llamar_ollama(prompt):
                 "prompt": prompt,
                 "stream": False
             },
-            timeout=60  # 60s para i3 + 16GB RAM
+            timeout=60
         )
 
-        print(f"[OLLAMA] Status: {response.status_code}")
-        
         if response.status_code != 200:
-            error_msg = f"Error Ollama: {response.text}"
-            print(f"[OLLAMA] ❌ {error_msg}")
-            raise Exception(error_msg)
+            raise Exception(response.text)
 
-        resultado = response.json()["response"]
-        print(f"[OLLAMA] ✓ Respuesta recibida ({len(resultado)} caracteres)")
-        return resultado
-        
-    except requests.exceptions.ConnectionError as e:
-        print(f"[OLLAMA] ❌ No se puede conectar a OLLAMA en http://localhost:11434")
-        print(f"         ¿Está OLLAMA corriendo? (ollama serve)")
-        raise
+        return response.json()["response"]
+
     except Exception as e:
-        print(f"[OLLAMA] ❌ Error: {str(e)}")
+        print("[OLLAMA ERROR]", e)
         raise
 
 
 # =========================
-# GENERADOR ESTÁTICO (FALLBACK)
+# FALLBACK
 # =========================
 def generar_catalogo_sin_ollama(productos):
-    """
-    Genera catálogo agrupado sin usar OLLAMA.
-    Fallback cuando OLLAMA no responde.
-    """
-    print("[FALLBACK] Generando catálogo sin OLLAMA...")
-    catalogo = {}
-    
+    resultado = []
+
     for prod in productos:
-        detalle = prod.get('Detalle', 'Sin nombre')
-        color = prod.get('Color')
-        talle = prod.get('talle')
-        
-        if detalle not in catalogo:
-            catalogo[detalle] = {'talles': set(), 'colores': set()}
-        
-        if talle:
-            catalogo[detalle]['talles'].add(talle)
-        if color:
-            catalogo[detalle]['colores'].add(color)
-    
-    # Convertir sets a listas ordenadas
-    resultado = [
-        {
-            "producto": producto,
-            "talles": sorted(list(datos['talles'])),
-            "colores": sorted(list(datos['colores']))
-        }
-        for producto, datos in sorted(catalogo.items())
-    ]
-    
-    print(f"[FALLBACK] ✓ {len(resultado)} productos agrupados")
+        resultado.append({
+            "id_producto": prod["id_producto"],
+            "producto": prod["Detalle"],
+            "talles": prod["talles"],
+            "colores": prod["colores"],
+            "precio": prod["precio"],
+            "variantes": prod.get("variantes", [])
+        })
+
     return resultado
 
 
 # =========================
-# LIMPIAR RESPUESTA
+# LIMPIAR JSON
 # =========================
-def limpiar_respuesta(respuesta_texto):
+def limpiar_respuesta(texto):
     try:
-        inicio = respuesta_texto.find("[")
-        fin = respuesta_texto.rfind("]") + 1
-        json_str = respuesta_texto[inicio:fin]
-        return json.loads(json_str)
-    except Exception as e:
-        print("Error parseando JSON:", e)
-        print("Respuesta cruda:", respuesta_texto)
+        inicio = texto.find("[")
+        fin = texto.rfind("]") + 1
+        return json.loads(texto[inicio:fin])
+    except:
         return []
 
 
@@ -128,92 +91,146 @@ def limpiar_respuesta(respuesta_texto):
 # =========================
 def obtener_productos_db():
     try:
-        # Conexión a SQL Server
-        print("[DB] Intentando conectar a SQL Server...")
         conn = pyodbc.connect(
             'DRIVER={ODBC Driver 17 for SQL Server};'
             'SERVER=.\\SQLEXPRESS01;'
             'DATABASE=PrendeteRock;'
             'Trusted_Connection=yes;'
         )
-        print("[DB] ✓ Conectado a SQL Server")
-        
-        cursor = conn.cursor()
-        
-        if LIMITE_PRODUCTOS:
-            print(f"[DB] Ejecutando SELECT TOP {LIMITE_PRODUCTOS}... (MODO PRUEBA)")
-            cursor.execute(f"SELECT TOP {LIMITE_PRODUCTOS} Detalle, Color, talle FROM Productos")
-        else:
-            print("[DB] Ejecutando SELECT... (TODOS LOS PRODUCTOS)")
-            cursor.execute("SELECT Detalle, Color, talle FROM Productos")
 
-        productos = []
+        cursor = conn.cursor()
+
+        # 🔥 FIX: orden correcto de columnas y JOINs corregidos
+        query = """
+        SELECT 
+            p.id_producto,        -- 0
+            p.nombre,             -- 1
+            pv.precio,            -- 2
+            pv.id_variante,       -- 3
+            pa.nombre,            -- 4
+            pav.valor             -- 5
+        FROM Productos p
+        INNER JOIN Producto_Variantes pv ON p.id_producto = pv.id_producto
+        LEFT JOIN Variante_Atributos va ON pv.id_variante = va.id_variante
+        LEFT JOIN Producto_Atributo_Valores pav ON va.id_valor = pav.id_valor
+        LEFT JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
+        WHERE p.activo = 1 AND pv.activo = 1
+        ORDER BY p.id_producto
+        """
+
+        cursor.execute(query)
         rows = cursor.fetchall()
-        print(f"[DB] Obtenidos {len(rows)} registros")
+
+        productos_map = {}
+        variantes_map = {}  # Para agrupar atributos por variante
+
+        for row in rows:
+            id_producto = row[0]
+            nombre = row[1]
+            precio = float(row[2]) if row[2] else 0
+
+            # 🔥 FIX CLAVE: índices correctos
+            id_variante = row[3]
+            attr_name = row[4]
+            attr_value = row[5]
+
+            if id_producto not in productos_map:
+                productos_map[id_producto] = {
+                    "id_producto": id_producto,
+                    "Detalle": nombre,
+                    "precio": precio,
+                    "talles": set(),
+                    "colores": set(),
+                    "variantes": []
+                }
+
+            # atributos
+            if attr_name == "Talle" and attr_value:
+                productos_map[id_producto]["talles"].add(attr_value)
+
+            if attr_name == "Color" and attr_value:
+                productos_map[id_producto]["colores"].add(attr_value)
+
+            # 🔥 Agrupar atributos por variante
+            if id_variante:
+                if id_variante not in variantes_map:
+                    variantes_map[id_variante] = {
+                        "id_variante": id_variante,
+                        "id_producto": id_producto,
+                        "talle": None,
+                        "color": None,
+                        "precio": precio
+                    }
+                
+                if attr_name == "Talle" and attr_value:
+                    variantes_map[id_variante]["talle"] = attr_value
+                elif attr_name == "Color" and attr_value:
+                    variantes_map[id_variante]["color"] = attr_value
         
-        for i, row in enumerate(rows):
-            producto = {
-                "Detalle": row[0],  # Detalle
-                "Color": row[1],    # Color
-                "talle": row[2] if row[2] else None  # talle (puede ser NULL)
-            }
-            productos.append(producto)
-            # Log TODOS en modo prueba (son solo 10)
-            print(f"[DB]   {i+1}. {producto}")
-        
+        # Agregar variantes agrupadas a productos
+        for id_variante, variante_data in variantes_map.items():
+            id_producto = variante_data["id_producto"]
+            if id_producto in productos_map:
+                productos_map[id_producto]["variantes"].append({
+                    "id_variante": variante_data["id_variante"],
+                    "talle": variante_data["talle"],
+                    "color": variante_data["color"],
+                    "precio": variante_data["precio"]
+                })
+
+        # =========================
+        # FORMATO FINAL
+        # =========================
+        productos = []
+
+        for id_producto, datos in productos_map.items():
+            talles_lista = list(datos["talles"]) if datos["talles"] else ["U"]
+            colores_lista = list(datos["colores"]) if datos["colores"] else ["Unico"]
+
+            productos.append({
+                "id_producto": id_producto,
+                "Detalle": datos["Detalle"],
+                "precio": datos["precio"],
+                "talles": talles_lista,
+                "colores": colores_lista,
+                "variantes": datos["variantes"]
+            })
+
         cursor.close()
         conn.close()
-        print("[DB] Conexión cerrada")
+
         return productos
-        
+
     except Exception as e:
-        print(f"[DB] ❌ Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print("DB ERROR:", e)
         return []
 
 
 # =========================
-# ENDPOINT IA
+# ENDPOINT
 # =========================
 @app.route("/productos-ia")
 def productos_ia():
     try:
-        print("\n[DEBUG] Iniciando /productos-ia...")
-        
-        # 1. Obtener productos de BD
-        print("[DEBUG] Conectando a BD...")
         productos = obtener_productos_db()
-        print(f"[DEBUG] Productos obtenidos: {len(productos)} registros")
-        
+
         if not productos:
-            print("[DEBUG] ⚠️ No hay productos en BD!")
-            return jsonify([]), 200
-        
-        # 2. Intentar usar OLLAMA con fallback
+            return jsonify([])
+
         try:
-            print(f"[DEBUG] Construyendo prompt...")
             prompt = construir_prompt(productos)
-            
-            print(f"[DEBUG] Llamando OLLAMA ({MODEL})...")
             respuesta = llamar_ollama(prompt)
-            print(f"[DEBUG] Respuesta OLLAMA: {respuesta[:200]}...")
-            
-            print("[DEBUG] Limpiando respuesta JSON...")
             resultado = limpiar_respuesta(respuesta)
-            print(f"[DEBUG] ✓ Resultado OLLAMA: {len(resultado)} productos")
-            
-        except Exception as ollama_error:
-            print(f"[WARN] OLLAMA falló: {str(ollama_error)[:100]}")
-            print("[WARN] Usando catálogo estático sin IA...")
+
+            if not resultado:
+                raise Exception("IA vacía")
+
+        except:
             resultado = generar_catalogo_sin_ollama(productos)
-        
+
         return jsonify(resultado)
 
     except Exception as e:
-        print(f"[ERROR] Exception en /productos-ia: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
@@ -221,16 +238,5 @@ def productos_ia():
 # MAIN
 # =========================
 if __name__ == "__main__":
-    print("="*50)
-    print("🤖 AGENTE IA - OLLAMA")
-    print("="*50)
-    print("✓ Endpoint: http://localhost:5001/productos-ia")
-    print(f"✓ Modelo: {MODEL}")
-    print("✓ Puerto: 5001")
-    if LIMITE_PRODUCTOS:
-        print(f"⚠ MODO PRUEBA: Procesando solo {LIMITE_PRODUCTOS} productos")
-        print(f"  (Cambiar LIMITE_PRODUCTOS a None para procesar todos)")
-    else:
-        print("✓ Procesando TODOS los productos de la BD")
-    print("="*50)
+    print("Servidor IA activo en http://localhost:5001")
     app.run(host="0.0.0.0", port=5001, debug=False)

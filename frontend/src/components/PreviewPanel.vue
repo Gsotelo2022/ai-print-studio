@@ -259,72 +259,113 @@ function resetZoom() {
 // -----------------------------
 function getProductImage(key) {
   const images = {
+    remera: '/mockups/camiseta.png',      // Remera → camiseta.png
+    taza: '/mockups/taza.png',            // Taza → taza.png
+    buzo: '/mockups/sudadera.png',        // Buzo → sudadera.png
+    gorra: '/mockups/camiseta.png',       // Gorra usa mockup de camiseta por ahora
+    bolsa: '/mockups/camiseta.png',       // Bolsa usa mockup de camiseta por ahora
+    // Fallback para keys antiguas (compatibilidad)
     camiseta: '/mockups/camiseta.png',
-    taza: '/mockups/taza.png',
     sudadera: '/mockups/sudadera.png',
   }
-  return images[key] || '/mockups/default.png'
+  return images[key] || '/mockups/camiseta.png'
 }
 
 // ---------------------------------
 // 📝 CONFIRMAR PEDIDO EN LA BD
 // ---------------------------------
+
 async function confirmarPedido() {
   try {
     creatingOrder.value = true
     errorOrder.value = null
 
+    // -----------------------------
+    // VALIDACIONES BÁSICAS
+    // -----------------------------
+    if (!props.userId) {
+      throw new Error("userId no está definido")
+    }
+
+    const idVariante = props.producto?.id_variante
+
+    if (!idVariante) {
+      throw new Error("Producto inválido: falta id_variante")
+    }
+
+    // -----------------------------
+    // PAYLOAD CORRECTO PARA FASTAPI
+    // -----------------------------
+    const payload = {
+      user_id: props.userId,
+
+      items: [
+        {
+          id_variante: props.producto?.id_variante, // ✅ SIEMPRE INT de BD
+          cantidad: props.producto?.cantidad || 1,
+
+          archivo_diseno: props.imagenUrl || null, // OK si backend lo maneja como string
+
+          posicion_x: position?.x ?? 0,
+          posicion_y: position?.y ?? 0,
+          zoom: imageZoom?.value ?? 1
+        }
+      ],
+
+      direccion_envio: "",
+      ciudad: "",
+      telefono_contacto: "",
+
+      notas_cliente: props.prompt || ""
+    }
+
+    console.log("📦 Enviando pedido:", payload)
+    console.log("PAYLOAD FINAL:", payload)
+    console.log("ID VARIANTE:", payload.items[0].id_variante)
+    // -----------------------------
+    // REQUEST
+    // -----------------------------
     const response = await fetch('http://localhost:8000/api/create-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: props.userId,  // NUEVO: ID del usuario autenticado
-        producto: props.producto.key,
-        talle: props.producto.talle || null,
-        color: props.producto.color,
-        cantidad: props.producto.cantidad,
-        prompt: props.prompt,
-        imagen_url: props.imagenUrl,
-        posicion_x: position.x,
-        posicion_y: position.y,
-        zoom: imageZoom.value
-      })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     })
 
     const data = await response.json()
-    
-    // Verificar si la respuesta fue exitosa
+
+    // -----------------------------
+    // VALIDACIÓN DE RESPUESTA
+    // -----------------------------
     if (!response.ok || !data.success) {
-      throw new Error(data.error || data.data?.error || 'Error al crear el pedido')
+      throw new Error(data.detail || data.error || "Error al crear el pedido")
     }
 
-    // Extraer datos del pedido (estructura: {success: true, data: {...}})
     const orderInfo = data.data
-    if (!orderInfo || !orderInfo.order_id) {
-      throw new Error('No se recibió ID del pedido')
+
+    if (!orderInfo?.order_id) {
+      throw new Error("No se recibió order_id")
     }
 
-    // Éxito: el pedido fue creado
+    // -----------------------------
+    // ÉXITO
+    // -----------------------------
     orderId.value = orderInfo.order_id
     orderCreated.value = true
     creatingOrder.value = false
-    
-    console.log('✅ Pedido creado:', {
-      order_id: orderInfo.order_id,
-      precio_total: orderInfo.precio_total
-    })
 
-    // 🔥 EMITIR EVENTO con los datos del pedido para que App.vue sepa
+    console.log("✅ Pedido creado:", orderInfo)
+
     emit('confirm-order', {
       order_id: orderInfo.order_id,
-      precio_total: orderInfo.precio_total,
-      cantidad: orderInfo.cantidad,
-      producto: orderInfo.producto
+      total: orderInfo.total,
+      cantidad: orderInfo.items_count
     })
 
   } catch (err) {
-    console.error('❌ Error creando pedido:', err)
-    errorOrder.value = err.message || 'No se pudo crear el pedido. Intenta de nuevo.'
+    console.error("❌ Error creando pedido:", err)
+    errorOrder.value = err.message || "Error al crear pedido"
     creatingOrder.value = false
   }
 }

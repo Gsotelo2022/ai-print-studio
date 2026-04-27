@@ -1,52 +1,93 @@
-const HF_TOKEN = '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'
+const Replicate = require("replicate");
+const fs = require("fs");
+const path = require("path");
 
-async function _getFetch() {
-  if (typeof globalThis.fetch === 'function') return globalThis.fetch
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN
+});
 
-  try {
-    const mod = await import('node-fetch')
-    return mod.default || mod
-  } catch (e) {
-    try {
-      // eslint-disable-next-line global-require
-      const { fetch: undiciFetch } = require('undici')
-      if (typeof undiciFetch === 'function') return undiciFetch
-    } catch (err) {
-      // ignore
-    }
+// 📁 Ruta donde se guardan las imágenes
+const carpetaImagenes = path.join(__dirname, "api", "imagenes-generadas-con-IA");
+
+// Crear carpeta si no existe
+if (!fs.existsSync(carpetaImagenes)) {
+  fs.mkdirSync(carpetaImagenes, { recursive: true });
+}
+
+// 🔥 Convierte stream a buffer
+async function streamToBuffer(stream) {
+  const chunks = [];
+
+  for await (const chunk of stream) {
+    chunks.push(chunk);
   }
 
-  throw new Error('No hay una implementación de fetch disponible. Usa Node 18+ o instala `undici`.')
+  return Buffer.concat(chunks);
 }
 
 async function generarImagen(prompt) {
-  const fetch = await _getFetch()
+  try {
 
-  const response = await fetch(
-    'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${HF_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        inputs: prompt
-      })
+    const promptMejorado =
+      "high quality t-shirt design, centered, no background, vector style, clean lines, print ready, " +
+      prompt;
+
+    const output = await replicate.run(
+      "black-forest-labs/flux-schnell",
+      {
+        input: {
+          prompt: promptMejorado
+        }
+      }
+    );
+
+    console.log("OUTPUT:", output);
+
+    let buffer = null;
+
+    if (Array.isArray(output)) {
+      const first = output[0];
+
+      // 🟣 Caso stream
+      if (first && typeof first === "object" && typeof first.getReader === "function") {
+        buffer = await streamToBuffer(first);
+      }
+
+      // 🟢 Caso URL
+      else if (typeof first === "string") {
+        const response = await fetch(first);
+        buffer = Buffer.from(await response.arrayBuffer());
+      }
     }
-  )
 
-  const contentType = response.headers.get && response.headers.get('content-type')
+    // 🟡 Caso string directo
+    else if (typeof output === "string") {
+      const response = await fetch(output);
+      buffer = Buffer.from(await response.arrayBuffer());
+    }
 
-  if (!contentType || !contentType.includes('image')) {
-    const errorText = await response.text()
-    throw new Error(errorText)
+    if (!buffer) {
+      throw new Error("No se pudo obtener la imagen");
+    }
+
+    // 📸 Nombre único
+    const nombreArchivo = `imagen_${Date.now()}.png`;
+    const rutaCompleta = path.join(carpetaImagenes, nombreArchivo);
+
+    // 💾 Guardar imagen
+    fs.writeFileSync(rutaCompleta, buffer);
+
+    console.log("Imagen guardada en:", rutaCompleta);
+
+    // 🌐 URL que va a usar Vue
+    const url = `http://localhost:3000/api/imagenes-generadas-con-IA/${nombreArchivo}`;
+
+    return url;
+
+  } catch (error) {
+    console.error("Error en Replicate:", error);
+    throw error;
   }
-
-  const buffer = await response.arrayBuffer()
-  const base64 = Buffer.from(buffer).toString('base64')
-
-  return `data:image/png;base64,${base64}`
 }
 
-module.exports = { generarImagen }
+module.exports = { generarImagen };

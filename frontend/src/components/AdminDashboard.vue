@@ -146,12 +146,12 @@ const handleLogout = () => {
 }
 
 .admin-layout.sidebar-collapsed {
-  padding-left: 80px;
+  padding-left: 56px;
 }
 
 /* SIDEBAR */
 .admin-sidebar {
-  width: 260px;
+  width: 208px;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -165,20 +165,20 @@ const handleLogout = () => {
 }
 
 .admin-layout.sidebar-collapsed .admin-sidebar {
-  width: 70px;
+  width: 56px;
 }
 
 .sidebar-header {
-  padding: 24px;
+  padding: 19px;
   border-bottom: 1px solid var(--color-border);
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-header {
-  padding: 20px 12px;
+  padding: 16px 10px;
 }
 
 .logo-container {
@@ -188,50 +188,50 @@ const handleLogout = () => {
 }
 
 .sidebar-logo {
-  width: 45px;
-  height: 45px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
   object-fit: cover;
 }
 
 .logo-container-expanded {
   display: flex;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .sidebar-logo-expanded {
-  width: 100px;
-  height: 100px;
-  border-radius: 12px;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
   object-fit: cover;
 }
 
 .sidebar-title {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.5rem;
-  letter-spacing: 2px;
+  font-size: 1.2rem;
+  letter-spacing: 1.6px;
   color: var(--color-primary);
   margin: 0;
   transition: all 0.2s;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-title {
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .sidebar-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.68rem;
   color: var(--color-text-secondary);
-  margin: 4px 0 0 0;
+  margin: 3px 0 0 0;
 }
 
 .sidebar-toggle-btn {
   position: absolute;
-  bottom: 80px;
-  right: -15px;
-  width: 30px;
-  height: 30px;
+  bottom: 64px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
   background: var(--color-primary);
   color: white;
   border: 2px solid var(--color-surface);
@@ -255,7 +255,7 @@ const handleLogout = () => {
 }
 
 .sidebar-toggle-btn .icon {
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,27 +263,27 @@ const handleLogout = () => {
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 0;
+  padding: 13px 0;
   overflow-y: auto;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  gap: 8px;
+  padding: 8px 16px;
   color: var(--color-text-secondary);
   text-decoration: none;
   transition: all 0.2s;
-  border-left: 3px solid transparent;
+  border-left: 2px solid transparent;
   overflow: hidden;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-link {
   justify-content: center;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .sidebar-link:hover {
@@ -299,12 +299,12 @@ const handleLogout = () => {
 
 .admin-layout.sidebar-collapsed .sidebar-link.active {
   border-left-width: 0;
-  border-right: 3px solid var(--color-primary);
+  border-right: 2px solid var(--color-primary);
 }
 
 .sidebar-link .icon {
-  font-size: 1.15rem;
-  width: 22px;
+  font-size: 0.92rem;
+  width: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -318,28 +318,28 @@ const handleLogout = () => {
 
 .sidebar-link.logout {
   border-top: none;
-  padding: 10px 20px;
+  padding: 8px 16px;
 }
 
 .admin-layout.sidebar-collapsed .sidebar-link.logout {
   justify-content: center;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 /* MAIN CONTENT */
 .admin-content {
   flex: 1;
   padding: 0;
-  margin-left: 260px;
+  margin-left: 208px;
   transition: margin-left 0.3s ease;
 }
 
 .admin-layout.sidebar-collapsed .admin-content {
-  margin-left: 70px;
+  margin-left: 56px;
 }
 
 .admin-header {
-  padding: 24px 32px;
+  padding: 19px 26px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -353,12 +353,12 @@ const handleLogout = () => {
 .admin-user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--color-primary);
   color: white;
@@ -366,7 +366,7 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
 }
 
 .user-details {
@@ -376,40 +376,41 @@ const handleLogout = () => {
 .user-name {
   font-weight: 600;
   margin: 0;
+  font-size: 0.9rem;
 }
 
 .user-email {
-  font-size: 0.85rem;
+  font-size: 0.68rem;
   color: var(--color-text-secondary);
   margin: 0;
 }
 
 .admin-view {
   flex: 1;
-  padding: 32px;
+  padding: 26px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .admin-sidebar {
-    width: 200px;
+    width: 160px;
   }
 
   .admin-content {
-    margin-left: 200px;
+    margin-left: 160px;
   }
 
   .sidebar-header {
-    padding: 20px 16px;
+    padding: 16px 13px;
   }
 
   .sidebar-link {
-    padding: 10px 16px;
-    font-size: 0.9rem;
+    padding: 8px 13px;
+    font-size: 0.72rem;
   }
 
   .admin-view {
-    padding: 20px;
+    padding: 16px;
   }
 }
 </style>

@@ -744,8 +744,8 @@ onMounted(() => {
 .dashboard-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 20px;
+  gap: 14px;
+  padding: 12px;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
   scroll-behavior: smooth;
@@ -770,8 +770,8 @@ onMounted(() => {
 .loading-message,
 .error-message {
   background: #1e293b;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 6px;
   text-align: center;
 }
 
@@ -781,13 +781,14 @@ onMounted(() => {
 }
 
 .btn-retry {
-  margin-top: 10px;
-  padding: 8px 16px;
+  margin-top: 6px;
+  padding: 5px 10px;
   background: #ef4444;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 0.75rem;
 }
 
 .btn-retry:hover {
@@ -866,13 +867,13 @@ onMounted(() => {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 4px;
+  margin-top: 2px;
   background: #1e293b;
   border: 1px solid #334155;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 100;
-  min-width: 160px;
+  min-width: 120px;
   overflow: hidden;
 }
 
@@ -881,14 +882,14 @@ onMounted(() => {
   background: transparent;
   border: none;
   color: #e2e8f0;
-  padding: 10px 16px;
+  padding: 6px 10px;
   text-align: left;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   transition: background 0.2s;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
 }
 
 .dropdown-item:hover {
@@ -899,9 +900,9 @@ onMounted(() => {
 .filtros-rapidos {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #334155;
 }
 
@@ -932,9 +933,9 @@ onMounted(() => {
 
 .badge {
   background: #0f172a;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
   font-weight: bold;
 }
 
@@ -942,8 +943,8 @@ onMounted(() => {
 .filtros-columna {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .input-filtro,
@@ -1006,11 +1007,11 @@ onMounted(() => {
 }
 
 .pedidos-table th {
-  padding: 8px;
+  padding: 5px;
   text-align: left;
   color: #94a3b8;
   font-weight: 600;
-  border-bottom: 2px solid #334155;
+  border-bottom: 1px solid #334155;
 }
 
 .pedidos-table tbody tr {
@@ -1023,7 +1024,7 @@ onMounted(() => {
 }
 
 .pedidos-table td {
-  padding: 8px;
+  padding: 5px;
   color: #e2e8f0;
 }
 
@@ -1036,35 +1037,36 @@ onMounted(() => {
 .cliente-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .cliente-info .avatar {
-  width: 36px;
-  height: 36px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.65rem;
   flex-shrink: 0;
 }
 
 .cliente-info .cliente-texto {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .cliente-info .nombre {
   font-weight: 600;
   color: #f1f5f9;
+  font-size: 0.75rem;
 }
 
 .cliente-info .email {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #94a3b8;
 }
 
@@ -1072,20 +1074,21 @@ onMounted(() => {
 .producto-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
 }
 
 .producto-info .emoji {
-  font-size: 1.5rem;
+  font-size: 0.9rem;
 }
 
 .producto-info .nombre {
   font-weight: 600;
   color: #f1f5f9;
+  font-size: 0.75rem;
 }
 
 .producto-info .detalles {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #94a3b8;
 }
 
@@ -1093,16 +1096,17 @@ onMounted(() => {
 .fecha-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .fecha-info .dia {
   font-weight: 600;
   color: #f1f5f9;
+  font-size: 0.75rem;
 }
 
 .fecha-info .hora {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #94a3b8;
 }
 
@@ -1110,9 +1114,9 @@ onMounted(() => {
 .badge-estado,
 .badge-pago {
   display: inline-block;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -1152,8 +1156,8 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
-  padding-top: 16px;
+  gap: 10px;
+  padding-top: 10px;
   border-top: 1px solid #334155;
 }
 
@@ -1161,10 +1165,10 @@ onMounted(() => {
   background: #334155;
   border: none;
   color: #e2e8f0;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.7rem;
   transition: background 0.2s;
 }
 
@@ -1179,7 +1183,7 @@ onMounted(() => {
 
 .pag-info {
   color: #94a3b8;
-  font-size: 0.9rem;
+  font-size: 0.7rem;
 }
 
 /* MENSAJES */
@@ -1187,9 +1191,9 @@ onMounted(() => {
 .error-inline,
 .no-data {
   text-align: center;
-  padding: 40px;
+  padding: 24px;
   color: #94a3b8;
-  font-size: 1rem;
+  font-size: 0.75rem;
 }
 
 .error-inline {

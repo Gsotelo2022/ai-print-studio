@@ -744,20 +744,20 @@ onMounted(() => {
 .dashboard-view {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 12px;
+  gap: 8px;
+  padding: 7px;
   max-height: calc(100vh - 80px);
   overflow-y: auto;
   scroll-behavior: smooth;
 }
 
 .view-header {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .view-title {
   font-size: 1.2rem;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   color: #e2e8f0;
 }
 
@@ -770,9 +770,10 @@ onMounted(() => {
 .loading-message,
 .error-message {
   background: #1e293b;
-  padding: 12px;
-  border-radius: 6px;
+  padding: 7px;
+  border-radius: 4px;
   text-align: center;
+  font-size: 0.75rem;
 }
 
 .error-message {
@@ -798,27 +799,27 @@ onMounted(() => {
 /* SECTION */
 .section {
   background: #1e293b;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 7px;
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 7px;
 }
 
 .header-left,
 .header-right {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
 }
 
 .section-title {
-  font-size: 1.5rem;
+  font-size: 0.9rem;
   margin: 0;
   color: #e2e8f0;
 }
@@ -826,10 +827,10 @@ onMounted(() => {
 .btn-refresh {
   background: #334155;
   border: none;
-  padding: 6px 10px;
+  padding: 4px 6px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.75rem;
   transition: background 0.2s;
 }
 
@@ -846,15 +847,15 @@ onMounted(() => {
   background: #10b981;
   border: none;
   color: white;
-  padding: 6px 12px;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .btn-export:hover {
@@ -870,10 +871,10 @@ onMounted(() => {
   margin-top: 2px;
   background: #1e293b;
   border: 1px solid #334155;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
   z-index: 100;
-  min-width: 120px;
+  min-width: 100px;
   overflow: hidden;
 }
 
@@ -882,14 +883,14 @@ onMounted(() => {
   background: transparent;
   border: none;
   color: #e2e8f0;
-  padding: 6px 10px;
+  padding: 4px 8px;
   text-align: left;
   cursor: pointer;
   font-size: 0.7rem;
   transition: background 0.2s;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .dropdown-item:hover {
@@ -900,9 +901,9 @@ onMounted(() => {
 .filtros-rapidos {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #334155;
 }
 
@@ -910,13 +911,13 @@ onMounted(() => {
   background: #334155;
   border: 2px solid transparent;
   color: #e2e8f0;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   transition: all 0.2s;
 }
 
@@ -933,9 +934,9 @@ onMounted(() => {
 
 .badge {
   background: #0f172a;
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-size: 0.6rem;
   font-weight: bold;
 }
 
@@ -943,18 +944,18 @@ onMounted(() => {
 .filtros-columna {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .input-filtro,
 .select-filtro {
-  padding: 6px 8px;
+  padding: 4px 6px;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 4px;
   color: #e2e8f0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
 .input-filtro::placeholder {
@@ -972,10 +973,10 @@ onMounted(() => {
   background: #475569;
   border: none;
   color: #e2e8f0;
-  padding: 6px 12px;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   transition: background 0.2s;
 }
 
@@ -988,9 +989,9 @@ onMounted(() => {
   overflow-x: auto;
   overflow-y: auto;
   max-height: 360px;
-  margin-bottom: 10px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 6px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .pedidos-table {
@@ -1007,7 +1008,7 @@ onMounted(() => {
 }
 
 .pedidos-table th {
-  padding: 5px;
+  padding: 4px;
   text-align: left;
   color: #94a3b8;
   font-weight: 600;
@@ -1024,7 +1025,7 @@ onMounted(() => {
 }
 
 .pedidos-table td {
-  padding: 5px;
+  padding: 4px;
   color: #e2e8f0;
 }
 
@@ -1037,19 +1038,19 @@ onMounted(() => {
 .cliente-info {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .cliente-info .avatar {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 700;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   flex-shrink: 0;
 }
 
@@ -1062,11 +1063,11 @@ onMounted(() => {
 .cliente-info .nombre {
   font-weight: 600;
   color: #f1f5f9;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .cliente-info .email {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #94a3b8;
 }
 
@@ -1074,21 +1075,21 @@ onMounted(() => {
 .producto-info {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
 }
 
 .producto-info .emoji {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .producto-info .nombre {
   font-weight: 600;
   color: #f1f5f9;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .producto-info .detalles {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #94a3b8;
 }
 
@@ -1096,17 +1097,17 @@ onMounted(() => {
 .fecha-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0px;
 }
 
 .fecha-info .dia {
   font-weight: 600;
   color: #f1f5f9;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .fecha-info .hora {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #94a3b8;
 }
 
@@ -1114,9 +1115,9 @@ onMounted(() => {
 .badge-estado,
 .badge-pago {
   display: inline-block;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-size: 0.7rem;
+  padding: 2px 5px;
+  border-radius: 6px;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -1156,8 +1157,8 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  padding-top: 10px;
+  gap: 6px;
+  padding-top: 6px;
   border-top: 1px solid #334155;
 }
 
@@ -1165,10 +1166,10 @@ onMounted(() => {
   background: #334155;
   border: none;
   color: #e2e8f0;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   transition: background 0.2s;
 }
 
@@ -1183,7 +1184,7 @@ onMounted(() => {
 
 .pag-info {
   color: #94a3b8;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
 }
 
 /* MENSAJES */
@@ -1191,9 +1192,9 @@ onMounted(() => {
 .error-inline,
 .no-data {
   text-align: center;
-  padding: 24px;
+  padding: 14px;
   color: #94a3b8;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .error-inline {
@@ -1237,14 +1238,14 @@ onMounted(() => {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   border: none;
-  padding: 6px 12px;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   transition: all 0.3s;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
-  margin-right: 8px;
+  box-shadow: 0 1px 2px rgba(99, 102, 241, 0.3);
+  margin-right: 5px;
 }
 
 .btn-graficos:hover {

@@ -50,6 +50,14 @@
         </a>
         <a 
           href="#" 
+          @click.prevent="currentView = 'cupones'"
+          :class="['sidebar-link', { active: currentView === 'cupones' }]"
+        >
+          <span class="icon">🎟️</span>
+          <span v-if="!isSidebarCollapsed">Cupones</span>
+        </a>
+        <a 
+          href="#" 
           @click.prevent="currentView = 'configuracion'"
           :class="['sidebar-link', { active: currentView === 'configuracion' }]"
         >
@@ -99,6 +107,7 @@ import GestionPedidos from './GestionPedidos.vue'
 import DashboardView from './DashboardView.vue'
 import GestionProductos from './GestionProductos.vue'
 import GestionClientes from './GestionClientes.vue'
+import GestionCupones from './GestionCupones.vue'
 import ConfiguracionView from './ConfiguracionView.vue'
 
 const emit = defineEmits(['logout'])
@@ -122,6 +131,7 @@ const currentViewComponent = computed(() => {
     pedidos: GestionPedidos,
     productos: GestionProductos,
     clientes: GestionClientes,
+    cupones: GestionCupones,
     configuracion: ConfiguracionView
   }
   return views[currentView.value]

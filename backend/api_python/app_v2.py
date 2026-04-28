@@ -1265,6 +1265,102 @@ def obtener_cupones_disponibles_cliente(id_cliente: int):
             conn.close()
 
 # ============================================================
+# ENDPOINT: MIS DISEÑOS - Cliente puede ver sus diseños subidos
+# ============================================================
+
+@app.get('/api/mis-disenos/{id_usuario}')
+def get_mis_disenos(id_usuario: int):
+    """
+    Obtener todos los diseños que un cliente ha subido/generado.
+    
+    Retorna lista de diseños con:
+    - Información del archivo (nombre, tamaño, dimensiones)
+    - Thumbnail para preview
+    - Fecha de subida
+    - Si fue generado por IA y el prompt usado
+    - En qué pedidos fue usado (si aplica)
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # Obtener diseños del usuario con información de pedidos
+        cur.execute("""
+            SELECT 
+                ad.id_archivo,
+                ad.nombre_original,
+                ad.nombre_almacenado,
+                ad.ruta_archivo,
+                ad.ruta_thumbnail,
+                ad.tipo_mime,
+                ad.tamano_bytes,
+                ad.ancho_px,
+                ad.alto_px,
+                ad.es_generado_ia,
+                ad.fecha_subida,
+                COUNT(DISTINCT pi.id_pedido) as veces_usado,
+                MAX(p.fecha_pedido) as ultimo_uso
+            FROM Archivos_Diseno ad
+            LEFT JOIN Pedidos_Items pi ON ad.id_archivo = pi.archivo_diseno
+            LEFT JOIN Pedidos p ON pi.id_pedido = p.id_pedido
+            WHERE ad.id_usuario = ?
+            GROUP BY 
+                ad.id_archivo, ad.nombre_original, ad.nombre_almacenado,
+                ad.ruta_archivo, ad.ruta_thumbnail, ad.tipo_mime,
+                ad.tamano_bytes, ad.ancho_px, ad.alto_px,
+                ad.es_generado_ia, ad.fecha_subida
+            ORDER BY ad.fecha_subida DESC
+        """, (id_usuario,))
+        
+        disenos = []
+        for row in cur.fetchall():
+            id_archivo, nombre_orig, nombre_alm, ruta, thumbnail, mime, \
+            tamano, ancho, alto, es_ia, fecha, veces, ultimo = row
+            
+            # Obtener prompt en query separada (para columnas TEXT)
+            prompt = None
+            if es_ia:
+                cur.execute("SELECT prompt_usado FROM Archivos_Diseno WHERE id_archivo = ?", (id_archivo,))
+                prompt_row = cur.fetchone()
+                if prompt_row:
+                    prompt = prompt_row[0]
+            
+            disenos.append({
+                'id_archivo': id_archivo,
+                'nombre_original': nombre_orig,
+                'nombre_almacenado': nombre_alm,
+                'ruta_archivo': ruta,
+                'ruta_thumbnail': thumbnail,
+                'tipo_mime': mime,
+                'tamano_bytes': tamano,
+                'tamano_kb': round(tamano / 1024, 2) if tamano else 0,
+                'dimensiones': f"{ancho}x{alto}" if ancho and alto else "N/A",
+                'ancho_px': ancho,
+                'alto_px': alto,
+                'es_generado_ia': bool(es_ia),
+                'prompt_usado': prompt if es_ia else None,
+                'fecha_subida': fecha.strftime('%Y-%m-%d %H:%M:%S') if fecha else None,
+                'estadisticas': {
+                    'veces_usado': veces or 0,
+                    'ultimo_uso': ultimo.strftime('%Y-%m-%d %H:%M:%S') if ultimo else None
+                }
+            })
+        
+        cur.close()
+        conn.close()
+        
+        return json_success({
+            'disenos': disenos,
+            'total': len(disenos),
+            'total_generados_ia': sum(1 for d in disenos if d['es_generado_ia']),
+            'total_subidos': sum(1 for d in disenos if not d['es_generado_ia'])
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo diseños del usuario {id_usuario}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================
 # ENDPOINTS: ADMIN - PEDIDOS
 # ============================================================
 

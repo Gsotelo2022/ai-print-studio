@@ -276,19 +276,156 @@ agente_descuentos/
 ## 📈 Próximas Mejoras
 
 - [ ] Integración con Ollama para validaciones complejas
-- [ ] Dashboard de administración de descuentos
+- [x] Dashboard de administración de descuentos (Ver Panel de Admin)
 - [ ] Analytics de uso de cupones
 - [ ] Descuentos por categoría de producto
 - [ ] Sistema de puntos y recompensas
 - [ ] Notificaciones de descuentos vía email
 
+## 🎯 Integración con Panel de Administrador
+
+El agente de cupones se integra nativamente en el **Panel de Administrador** de AI Print Studio dentro de la sección **Gestión de Cupones**.
+
+### Funcionalidades del Panel Admin:
+
+1. **Creación de Cupones**:
+   - Código personalizado
+   - Porcentaje de descuento
+   - Fecha de expiración
+   - Límite de usos
+   - Categoría (primera_compra, fidelidad, general, etc.)
+
+2. **Visualización de Cupones**:
+   - Lista completa de cupones activos e inactivos
+   - Filtros por categoría, estado, fecha
+   - Búsqueda por código
+   - Ordenamiento por usos, descuento, fecha
+
+3. **Estadísticas de Cupones**:
+   - Total de cupones activos
+   - Cupones más usados
+   - Descuento promedio aplicado
+   - Ahorro total de clientes
+   - Gráficos de uso por período
+
+4. **Gestión de Reglas**:
+   - Activar/desactivar cupones
+   - Modificar límite de usos
+   - Extender fecha de expiración
+   - Clonar cupones exitosos
+
+### Endpoints del Administrador:
+
+#### Crear Cupón
+**POST** `/api/admin/cupones`
+
+```json
+{
+  "codigo": "BLACKFRIDAY50",
+  "descuento": 50.0,
+  "descripcion": "Descuento Black Friday",
+  "fecha_expiracion": "2026-11-30",
+  "es_limitado": true,
+  "usos_maximos": 100,
+  "categoria": "especial"
+}
+```
+
+#### Listar Cupones
+**GET** `/api/admin/cupones?activo=true&categoria=fidelidad`
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "cupones": [
+    {
+      "id_cupon": 1,
+      "codigo": "VIP25",
+      "descuento": 25,
+      "fecha_creacion": "2026-01-15",
+      "fecha_expiracion": "2026-12-31",
+      "usos_totales": 45,
+      "usos_restantes": 55,
+      "activo": true
+    }
+  ],
+  "total": 1
+}
+```
+
+#### Actualizar Cupón
+**PUT** `/api/admin/cupones/{id_cupon}`
+
+```json
+{
+  "activo": false,
+  "usos_maximos": 200,
+  "fecha_expiracion": "2027-01-31"
+}
+```
+
+#### Eliminar Cupón
+**DELETE** `/api/admin/cupones/{id_cupon}`
+
+#### Estadísticas de Cupones
+**GET** `/api/admin/cupones/estadisticas`
+
+**Respuesta:**
+```json
+{
+  "total_cupones": 12,
+  "activos": 8,
+  "inactivos": 4,
+  "mas_usados": [
+    {"codigo": "BIENVENIDA10", "usos": 234},
+    {"codigo": "VERANO20", "usos": 189}
+  ],
+  "descuento_promedio": 14.5,
+  "ahorro_total_clientes": 2450000
+}
+```
+
+### Componente Frontend: GestionCupones.vue
+
+**Ubicación:** `frontend/src/components/admin/GestionCupones.vue`
+
+**Características:**
+- 📊 Dashboard con métricas clave
+- 🎫 Tabla de cupones con acciones (editar, eliminar, activar/desactivar)
+- ➕ Modal para crear nuevo cupón
+- ✏️ Modal para editar cupón existente
+- 📈 Gráficos de uso de cupones
+- 🔍 Búsqueda y filtros avanzados
+- 📥 Exportar cupones a CSV/Excel
+
+### Flujo de Creación de Cupón:
+
+```
+Admin → Panel → Gestión de Cupones → 
+"Nuevo Cupón" → Formulario → 
+POST /api/admin/cupones → 
+Backend valida → 
+Inserta en BD (tabla Cupones) → 
+Cupón disponible para clientes
+```
+
+## 🔗 Servicios Relacionados
+
+- **Puerto 5001**: Agente de productos (catálogo)
+- **Puerto 5002**: Agente de precios (actualización)
+- **Puerto 5003**: Agente de cupones (descuentos) ← Este servicio
+- **Puerto 8000**: FastAPI (backend principal)
+- **Puerto 5174**: Vue + Vite (frontend)
+- **Puerto 11434**: OLLAMA (modelo IA)
+
 ## 📞 Soporte
 
 Para más información, consulta la documentación interactiva:
-- **Swagger UI**: http://localhost:5002/docs
-- **ReDoc**: http://localhost:5002/redoc
+- **Swagger UI**: http://localhost:5003/docs
+- **ReDoc**: http://localhost:5003/redoc
 
 ---
-**Versión**: 1.0.0  
+**Versión**: 2.0.0  
 **Autor**: AI Print Studio Team  
-**Última actualización**: 2024
+**Última actualización**: 28 de abril de 2026

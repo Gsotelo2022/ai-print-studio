@@ -723,6 +723,62 @@ def create_order(payload: dict):
             })
 
         # =========================
+        # 🎟️ VALIDAR Y APLICAR CUPÓN
+        # =========================
+        codigo_cupon = payload.get("codigo_cupon")
+        id_cupon_usado = None
+        descuento_porcentaje = 0
+        monto_descuento = 0
+        subtotal_original = total
+        
+        if codigo_cupon:
+            # Verificar que el cupón existe y está activo
+            cur.execute("""
+                SELECT id_cupon, descuento_porcentaje, usos_maximos, usos_actuales, 
+                       fecha_expiracion, activo
+                FROM Cupones
+                WHERE codigo = ? AND activo = 1
+            """, (codigo_cupon,))
+            
+            cupon = cur.fetchone()
+            
+            if not cupon:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Cupón '{codigo_cupon}' no válido o inactivo"
+                )
+            
+            id_cupon, porcentaje, usos_max, usos_actual, fecha_exp, activo = cupon
+            
+            # Validar fecha de expiración
+            if fecha_exp and datetime.now().date() > fecha_exp:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cupón '{codigo_cupon}' expirado"
+                )
+            
+            # Validar usos restantes
+            if usos_max and usos_actual >= usos_max:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cupón '{codigo_cupon}' alcanzó el límite de usos"
+                )
+            
+            id_cupon_usado = id_cupon
+            descuento_porcentaje = float(porcentaje)
+            monto_descuento = (float(total) * float(porcentaje)) / 100
+            total = float(total) - monto_descuento
+            
+            # Incrementar contador de usos
+            cur.execute("""
+                UPDATE Cupones
+                SET usos_actuales = usos_actuales + 1
+                WHERE id_cupon = ?
+            """, (id_cupon,))
+            
+            print(f"✅ Cupón aplicado: {codigo_cupon} (-{porcentaje}%, -${monto_descuento:.2f})")
+
+        # =========================
         # 3. GUARDAR ARCHIVOS DE DISEÑO
         # =========================
         for item in items_data:
@@ -765,16 +821,17 @@ def create_order(payload: dict):
 
         cur.execute("""
             INSERT INTO Pedidos (
-                numero_orden, id_usuario, subtotal, total,
+                numero_orden, id_usuario, subtotal, descuento, total,
                 direccion_envio, ciudad, telefono_contacto, notas_cliente
             )
             OUTPUT INSERTED.id_pedido
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             numero_orden,
             user_id,
-            total,
-            total,
+            subtotal_original,  # Precio sin descuento
+            monto_descuento,  # Monto del descuento (0 si no hay cupón)
+            total,  # Precio final con descuento
             payload.get("direccion_envio"),
             payload.get("ciudad"),
             payload.get("telefono_contacto"),
@@ -945,6 +1002,210 @@ def admin_get_dashboard_stats(page: int = 1, limit: int = 10):
         print(f"❌ Error en admin_get_dashboard_stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+# ============================================================
+# ENDPOINTS: CUPONES PARA CLIENTES
+# ============================================================
+
+@app.get('/api/cupones/disponibles/{id_cliente}')
+def obtener_cupones_disponibles_cliente(id_cliente: int):
+    """
+    Obtener cupones disponibles para un cliente específico según su perfil
+    
+    Lógica de negocio:
+    - Cupones con 'BIENVENIDA' o 'PRIMERA': Solo para clientes sin compras
+    - Cupones con 'FIDELIDAD' o 'VIP': Para clientes con 5+ compras
+    - Cupones con 'REGRESO' o 'VUELVE': Para clientes inactivos (>30 días)
+    - Cupones genéricos: Para todos los clientes
+    
+    Retorna cupones activos, no expirados y con usos disponibles
+    """
+    conn = None
+    cur = None
+    
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # ============================================================
+        # 1. OBTENER CUPONES ACTIVOS
+        # ============================================================
+        cur.execute("""
+            SELECT 
+                id_cupon,
+                codigo, 
+                descripcion, 
+                descuento_porcentaje, 
+                fecha_expiracion, 
+                usos_actuales, 
+                usos_maximos
+            FROM Cupones
+            WHERE activo = 1 
+            AND (fecha_expiracion IS NULL OR fecha_expiracion > GETDATE())
+            AND (usos_maximos IS NULL OR usos_actuales < usos_maximos)
+            ORDER BY descuento_porcentaje DESC
+        """)
+        
+        cupones_db = cur.fetchall()
+        
+        if not cupones_db:
+            return json_success({
+                'cupones': [],
+                'total': 0,
+                'perfil_cliente': None,
+                'mensaje': 'No hay cupones disponibles en este momento'
+            })
+        
+        # ============================================================
+        # 2. OBTENER PERFIL DEL CLIENTE
+        # ============================================================
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total_pedidos,
+                MAX(fecha_pedido) as ultima_compra,
+                SUM(total) as gasto_total
+            FROM Pedidos
+            WHERE id_usuario = ? AND estado != 'cancelado'
+        """, (id_cliente,))
+        
+        perfil = cur.fetchone()
+        total_pedidos = perfil[0] if perfil else 0
+        ultima_compra = perfil[1] if perfil else None
+        gasto_total = float(perfil[2]) if perfil and perfil[2] else 0.0
+        
+        # ============================================================
+        # 3. CALCULAR DÍAS DESDE ÚLTIMA COMPRA
+        # ============================================================
+        dias_inactivo = 999
+        if ultima_compra:
+            dias_inactivo = (datetime.now() - ultima_compra).days
+        
+        # ============================================================
+        # 4. APLICAR LÓGICA DE NEGOCIO - FILTRAR CUPONES
+        # ============================================================
+        cupones_aplicables = []
+        
+        for cupon in cupones_db:
+            id_cupon, codigo, descripcion, descuento, expiracion, usos_actuales, usos_maximos = cupon
+            codigo_upper = codigo.upper()
+            
+            # Variables para determinar aplicabilidad
+            es_aplicable = False
+            razon = None
+            categoria = 'general'
+            
+            # ============================================================
+            # REGLA 1: CUPONES DE BIENVENIDA (Clientes nuevos)
+            # ============================================================
+            if any(palabra in codigo_upper for palabra in ['BIENVENIDA', 'PRIMERA', 'WELCOME', 'NUEVO']):
+                if total_pedidos == 0:
+                    es_aplicable = True
+                    razon = '🎉 ¡Bienvenido! Tu primera compra'
+                    categoria = 'primera_compra'
+            
+            # ============================================================
+            # REGLA 2: CUPONES DE FIDELIDAD (Clientes recurrentes)
+            # ============================================================
+            elif any(palabra in codigo_upper for palabra in ['FIDELIDAD', 'VIP', 'PREMIUM', 'FRECUENTE']):
+                if total_pedidos >= 5:
+                    es_aplicable = True
+                    razon = f'⭐ Cliente VIP - {total_pedidos} compras realizadas'
+                    categoria = 'fidelidad'
+            
+            # ============================================================
+            # REGLA 3: CUPONES DE REGRESO (Clientes inactivos)
+            # ============================================================
+            elif any(palabra in codigo_upper for palabra in ['REGRESO', 'VUELVE', 'COMEBACK', 'EXTRAÑAMOS']):
+                if total_pedidos > 0 and dias_inactivo > 30:
+                    es_aplicable = True
+                    razon = f'💌 ¡Te extrañamos! (Inactivo {dias_inactivo} días)'
+                    categoria = 'reactivacion'
+            
+            # ============================================================
+            # REGLA 4: CUPONES POR MONTO GASTADO (Alto valor)
+            # ============================================================
+            elif any(palabra in codigo_upper for palabra in ['ESPECIAL', 'EXCLUSIVO', 'ELITE']):
+                if gasto_total >= 10000:  # $10,000+ en compras
+                    es_aplicable = True
+                    razon = f'💎 Cliente especial - ${gasto_total:.0f} en compras'
+                    categoria = 'alto_valor'
+            
+            # ============================================================
+            # REGLA 5: CUPONES GENÉRICOS (Para todos)
+            # ============================================================
+            else:
+                es_aplicable = True
+                razon = None
+                categoria = 'general'
+            
+            # ============================================================
+            # AGREGAR CUPÓN SI ES APLICABLE
+            # ============================================================
+            if es_aplicable:
+                # Calcular usos restantes
+                usos_restantes = None
+                if usos_maximos:
+                    usos_restantes = usos_maximos - (usos_actuales or 0)
+                
+                # Formatear fecha de expiración
+                fecha_exp_str = None
+                if expiracion:
+                    fecha_exp_str = expiracion.strftime('%Y-%m-%d') if hasattr(expiracion, 'strftime') else str(expiracion)
+                
+                cupones_aplicables.append({
+                    'id_cupon': id_cupon,
+                    'codigo': codigo,
+                    'descripcion': descripcion,
+                    'descuento': int(descuento),
+                    'expiracion': fecha_exp_str,
+                    'usos_restantes': usos_restantes,
+                    'razon': razon,
+                    'categoria': categoria,
+                    'es_limitado': usos_maximos is not None
+                })
+        
+        # ============================================================
+        # 5. ORDENAR CUPONES POR RELEVANCIA
+        # ============================================================
+        # Orden de prioridad: primera_compra > reactivacion > fidelidad > alto_valor > general
+        orden_categorias = {
+            'primera_compra': 1,
+            'reactivacion': 2,
+            'fidelidad': 3,
+            'alto_valor': 4,
+            'general': 5
+        }
+        
+        cupones_aplicables.sort(key=lambda x: (orden_categorias.get(x['categoria'], 99), -x['descuento']))
+        
+        # ============================================================
+        # 6. RETORNAR RESPUESTA
+        # ============================================================
+        return json_success({
+            'cupones': cupones_aplicables,
+            'total': len(cupones_aplicables),
+            'perfil_cliente': {
+                'total_pedidos': total_pedidos,
+                'dias_inactivo': dias_inactivo if total_pedidos > 0 else None,
+                'gasto_total': gasto_total,
+                'es_cliente_nuevo': total_pedidos == 0,
+                'es_cliente_vip': total_pedidos >= 5,
+                'es_cliente_inactivo': dias_inactivo > 30 if total_pedidos > 0 else False
+            },
+            'mensaje': f'Se encontraron {len(cupones_aplicables)} cupón(es) disponible(s) para ti' if cupones_aplicables else 'No hay cupones disponibles para tu perfil'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error en obtener_cupones_disponibles_cliente: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    
     finally:
         if cur:
             cur.close()

@@ -49,7 +49,7 @@
       </section>
 
       <!-- DASHBOARD USUARIO LOGUEADO: Opciones iniciales (Subir imagen o Generar con IA) -->
-      <section v-if="userLogged && !imageSourceMode && !generatedImage" class="workflow-section dashboard-section">
+      <section v-if="userLogged && !imageSourceMode && !generatedImage && !showMyDesigns" class="workflow-section dashboard-section">
         <div class="dashboard-header">
           <h2 class="dashboard-title">Creá estampados únicos con IA</h2>
           <p class="dashboard-subtitle">Subí una imagen o escribe una idea y genera diseños en segundos</p>
@@ -128,6 +128,15 @@
         />
       </section>
 
+      <!-- GALERÍA DE DISEÑOS -->
+      <section v-if="showMyDesigns && userType === 'cliente'" class="workflow-section">
+        <MisDisenosGaleria
+          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
+          @design-selected="onDesignSelected"
+          @go-back="closeMyDesigns"
+        />
+      </section>
+
       <!-- PASO 3: VISTA PREVIA -->
       <section v-if="selectedProduct && !orderData && userType === 'cliente'" class="workflow-section">
         <PreviewPanel
@@ -174,12 +183,14 @@ import PreviewPanel from './components/PreviewPanel.vue'
 import CheckoutPanel from './components/CheckoutPanel.vue'
 import GenerateImage from './components/GenerateImage.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
+import MisDisenosGaleria from './components/MisDisenosGaleria.vue'
 
 // Estado de autenticación y usuario
 const userLogged = ref(false) // cambiar a true para ver diferentes vistas
 const userType = ref('cliente') // 'cliente' o 'admin'
 const showRegistrationForm = ref(false) // mostrar formulario de registro
 const showLoginForm = ref(false) // mostrar formulario de login
+const showMyDesigns = ref(false) // mostrar galería de diseños
 const currentUser = ref(null) // datos del usuario logueado
 
 const currentStep = ref(0)
@@ -436,11 +447,38 @@ function goToDashboard() {
   generatedImage.value = null
   selectedProduct.value = null
   orderData.value = null
+  showMyDesigns.value = false
 }
 
 function goToMyDesigns() {
-  // Placeholder: aquí irían los diseños guardados del usuario
-  alert('Sección "Mis Diseños" aún no implementada')
+  // Mostrar galería de diseños del usuario
+  console.log('📸 Abriendo Mis Diseños...')
+  imageSourceMode.value = null
+  generatedImage.value = null
+  selectedProduct.value = null
+  orderData.value = null
+  showBackgroundRemover.value = false
+  showMyDesigns.value = true
+}
+
+function closeMyDesigns() {
+  // Cerrar galería y volver al dashboard
+  showMyDesigns.value = false
+}
+
+function onDesignSelected(designData) {
+  // Usuario seleccionó un diseño para reutilizar
+  console.log('✅ Diseño reutilizado:', designData)
+  
+  // Cargar la imagen y prompt del diseño seleccionado
+  generatedImage.value = designData.imagen_url
+  lastPrompt.value = designData.prompt
+  
+  // Cerrar galería y pasar al selector de productos
+  showMyDesigns.value = false
+  showBackgroundRemover.value = false
+  
+  // El usuario ahora verá ProductSelector con el diseño cargado
 }
 
 function handleLogout() {

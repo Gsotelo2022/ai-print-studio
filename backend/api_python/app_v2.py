@@ -782,32 +782,84 @@ def create_order(payload: dict):
         # 3. GUARDAR ARCHIVOS DE DISEÑO
         # =========================
         for item in items_data:
-            archivo_url = item.get("archivo_diseno")
+            archivo_data = item.get("archivo_diseno")
             
-            if archivo_url:
-                # Guardar en Archivos_Diseno y obtener ID
-                # El prompt puede estar en 'prompt' o en 'notas_cliente'
-                prompt_usado = payload.get("prompt") or payload.get("notas_cliente") or "Diseño personalizado"
+            if archivo_data:
+                print(f"🔍 Procesando archivo_diseno: tipo={type(archivo_data)}, length={len(str(archivo_data)) if archivo_data else 0}")
                 
-                cur.execute("""
-                    INSERT INTO Archivos_Diseno (
-                        id_usuario, nombre_original, nombre_almacenado, ruta_archivo,
-                        tipo_mime, es_generado_ia, prompt_usado, fecha_subida
-                    )
-                    OUTPUT INSERTED.id_archivo
-                    VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE())
-                """, (
-                    user_id,
-                    "diseno_generado.png",
-                    f"diseno_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
-                    archivo_url,
-                    "image/png",
-                    1,  # es_generado_ia
-                    prompt_usado
-                ))
-                
-                id_archivo = cur.fetchone()[0]
-                item["id_archivo"] = id_archivo
+                # Detectar si es base64 y guardar como archivo en disco
+                if isinstance(archivo_data, str) and archivo_data.startswith("data:image"):
+                    print(f"📸 Detectado base64, procesando imagen de {len(archivo_data)} caracteres...")
+                    try:
+                        # Decodificar base64
+                        header, encoded = archivo_data.split(",", 1)
+                        image_bytes = base64.b64decode(encoded)
+                        
+                        # Procesar con PIL
+                        img = Image.open(io.BytesIO(image_bytes))
+                        ancho, alto = img.size
+                        
+                        # Calcular hash MD5
+                        hash_md5 = hashlib.md5(image_bytes).hexdigest()
+                        
+                        # Generar nombre único
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        nombre_almacenado = f"user{user_id}_{timestamp}_{hash_md5[:8]}.png"
+                        
+                        # Guardar archivo en disco
+                        ruta_completa = UPLOADS_DIR / nombre_almacenado
+                        with open(ruta_completa, 'wb') as f:
+                            f.write(image_bytes)
+                        
+                        # Crear thumbnail
+                        thumbnail_nombre = f"thumb_{nombre_almacenado}"
+                        thumbnail_path = THUMBNAILS_DIR / thumbnail_nombre
+                        img_thumb = img.copy()
+                        img_thumb.thumbnail((200, 200), Image.Resampling.LANCZOS)
+                        img_thumb.save(thumbnail_path)
+                        
+                        # Rutas relativas para guardar en BD
+                        ruta_relativa = f"uploads/designs/{nombre_almacenado}"
+                        ruta_thumb_relativa = f"uploads/thumbnails/{thumbnail_nombre}"
+                        
+                        # Prompt usado
+                        prompt_usado = payload.get("prompt") or payload.get("notas_cliente") or "Diseño personalizado"
+                        
+                        # Insertar en BD
+                        cur.execute("""
+                            INSERT INTO Archivos_Diseno (
+                                id_usuario, nombre_original, nombre_almacenado, ruta_archivo,
+                                ruta_thumbnail, tipo_mime, tamano_bytes, ancho_px, alto_px, 
+                                hash_md5, es_generado_ia, prompt_usado, fecha_subida
+                            )
+                            OUTPUT INSERTED.id_archivo
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                        """, (
+                            user_id,
+                            "diseno_generado.png",
+                            nombre_almacenado,
+                            ruta_relativa,
+                            ruta_thumb_relativa,
+                            "image/png",
+                            len(image_bytes),
+                            ancho,
+                            alto,
+                            hash_md5,
+                            1,  # es_generado_ia
+                            prompt_usado
+                        ))
+                        
+                        id_archivo = cur.fetchone()[0]
+                        item["id_archivo"] = id_archivo
+                        
+                        print(f"✅ Archivo guardado: {ruta_relativa} ({len(image_bytes)} bytes)")
+                        
+                    except Exception as e:
+                        print(f"❌ Error guardando archivo de diseño: {e}")
+                        item["id_archivo"] = None
+                else:
+                    # Si es un ID de archivo existente, úsalo directamente
+                    item["id_archivo"] = archivo_data if isinstance(archivo_data, int) else None
             else:
                 item["id_archivo"] = None
 

@@ -113,7 +113,8 @@ class AgenteDescuentos:
     def _calcular_descuento_cliente(self, id_cliente: int) -> Optional[Dict]:
         """Descuento basado en historial del cliente"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             # Contar pedidos completados del cliente
             query = """
@@ -147,7 +148,8 @@ class AgenteDescuentos:
     def _validar_cupon(self, codigo: str, pedido: Dict) -> Optional[Dict]:
         """Validar y aplicar cupón"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             # Buscar cupón en BD
             query = """
@@ -191,21 +193,23 @@ class AgenteDescuentos:
     def _registrar_uso_cupon(self, cupon_id: int):
         """Incrementar contador de usos del cupón"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             query = """
                 UPDATE Cupones
                 SET usos_actuales = usos_actuales + 1
                 WHERE id_cupon = ?
             """
             cursor.execute(query, (cupon_id,))
-            self.conn.commit()
+            conn.commit()
         except Exception as e:
             print(f"Error registrando uso de cupón: {e}")
     
     def _obtener_descuentos_temporales(self) -> List[Dict]:
         """Obtener descuentos temporales activos"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             query = """
                 SELECT tipo, nombre, descripcion, porcentaje
@@ -258,7 +262,8 @@ class AgenteDescuentos:
     def validar_cupon_disponible(self, codigo: str) -> Dict:
         """Verificar si un cupón existe y está disponible (sin registrar uso)"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             query = """
                 SELECT codigo, descuento_porcentaje, usos_maximos, 
@@ -328,7 +333,8 @@ class AgenteDescuentos:
     def listar_cupones(self, incluir_inactivos: bool = False) -> List[Dict]:
         """Listar todos los cupones"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             if incluir_inactivos:
                 query = "SELECT * FROM Cupones ORDER BY fecha_creacion DESC"
@@ -373,7 +379,8 @@ class AgenteDescuentos:
             }
         """
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             # Verificar que el código no exista
             cursor.execute("SELECT id_cupon FROM Cupones WHERE codigo = ?", cupon['codigo'])
@@ -399,7 +406,7 @@ class AgenteDescuentos:
                 cupon.get('fecha_expiracion')
             )
             
-            self.conn.commit()
+            conn.commit()
             
             return {
                 'success': True,
@@ -408,7 +415,7 @@ class AgenteDescuentos:
             }
             
         except Exception as e:
-            self.conn.rollback()
+            conn.rollback()
             print(f"Error creando cupón: {e}")
             return {
                 'success': False,
@@ -418,7 +425,8 @@ class AgenteDescuentos:
     def actualizar_cupon(self, id_cupon: int, datos: Dict) -> Dict:
         """Actualizar un cupón existente"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             # Construir query dinámicamente
             campos = []
@@ -451,7 +459,7 @@ class AgenteDescuentos:
             valores.append(id_cupon)
             
             cursor.execute(query, *valores)
-            self.conn.commit()
+            conn.commit()
             
             return {
                 'success': True,
@@ -459,7 +467,7 @@ class AgenteDescuentos:
             }
             
         except Exception as e:
-            self.conn.rollback()
+            conn.rollback()
             print(f"Error actualizando cupón: {e}")
             return {
                 'success': False,
@@ -469,7 +477,8 @@ class AgenteDescuentos:
     def eliminar_cupon(self, id_cupon: int, soft_delete: bool = True) -> Dict:
         """Eliminar un cupón (por defecto solo lo desactiva)"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             if soft_delete:
                 # Solo desactivar
@@ -478,7 +487,7 @@ class AgenteDescuentos:
                 # Eliminar permanentemente
                 cursor.execute("DELETE FROM Cupones WHERE id_cupon = ?", id_cupon)
             
-            self.conn.commit()
+            conn.commit()
             
             return {
                 'success': True,
@@ -486,7 +495,7 @@ class AgenteDescuentos:
             }
             
         except Exception as e:
-            self.conn.rollback()
+            conn.rollback()
             print(f"Error eliminando cupón: {e}")
             return {
                 'success': False,
@@ -498,7 +507,8 @@ class AgenteDescuentos:
     def obtener_estadisticas_ventas(self) -> Dict:
         """Obtener estadísticas de ventas para análisis de IA"""
         try:
-            cursor = self.conn.cursor()
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
             
             stats = {}
             

@@ -107,11 +107,33 @@
             <span>${{ formatPrice(producto.precio) }} c/u</span>
           </div>
 
-          <div class="price-row price-total">
-            <span>Total</span>
+          <!-- Subtotal (antes de descuento) -->
+          <div v-if="cuponAplicado" class="price-row">
+            <span>Subtotal</span>
             <span>${{ formatPrice(producto.precioTotal) }}</span>
           </div>
+
+          <!-- Descuento del cupón -->
+          <div v-if="cuponAplicado" class="price-row price-descuento">
+            <span>🎟️ Descuento ({{ cuponAplicado.codigo }}) -{{ cuponAplicado.descuento }}%</span>
+            <span>-${{ formatPrice(montoDescuento) }}</span>
+          </div>
+
+          <!-- Total con descuento -->
+          <div class="price-row price-total">
+            <span>Total</span>
+            <span>${{ formatPrice(totalConDescuento) }}</span>
+          </div>
         </div>
+
+        <!-- 🎟️ SISTEMA DE CUPONES (solo antes de confirmar pedido) -->
+        <CuponesDisponibles
+          v-if="!orderCreated && userId"
+          ref="cuponesRef"
+          :user-id="userId"
+          @cupon-aplicado="onCuponAplicado"
+          @cupon-removido="onCuponRemovido"
+        />
 
         <!-- ESTADO DEL PEDIDO -->
         <div v-if="!orderCreated" class="order-status">
@@ -168,6 +190,7 @@
 
 <script setup>
 import { reactive, computed, ref, onMounted } from 'vue'
+import CuponesDisponibles from './CuponesDisponibles.vue'
 
 // --- Props ---
 const props = defineProps({
@@ -190,6 +213,32 @@ const creatingOrder = ref(false)
 const errorOrder = ref(null)
 const loadingPago = ref(false)
 const errorPago = ref(null)
+
+// 🎟️ SISTEMA DE CUPONES
+const cuponesRef = ref(null)
+const cuponAplicado = ref(null)
+
+// Cálculos de descuento
+const montoDescuento = computed(() => {
+  if (!cuponAplicado.value) return 0
+  const subtotal = props.producto.precioTotal || 0
+  return (subtotal * cuponAplicado.value.descuento) / 100
+})
+
+const totalConDescuento = computed(() => {
+  const subtotal = props.producto.precioTotal || 0
+  return subtotal - montoDescuento.value
+})
+
+function onCuponAplicado(cupon) {
+  cuponAplicado.value = cupon
+  console.log('✅ Cupón aplicado:', cupon.codigo, `-${cupon.descuento}%`)
+}
+
+function onCuponRemovido() {
+  cuponAplicado.value = null
+  console.log('🗑 Cupón removido')
+}
 
 // Talles disponibles
 const talles = ['S', 'M', 'L', 'XL', 'XXL']
@@ -316,7 +365,14 @@ async function confirmarPedido() {
       ciudad: "",
       telefono_contacto: "",
 
-      notas_cliente: props.prompt || ""
+      notas_cliente: props.prompt || "",
+
+      // 🎟️ CUPÓN (si está aplicado)
+      codigo_cupon: cuponAplicado.value?.codigo || null,
+      descuento_porcentaje: cuponAplicado.value?.descuento || 0,
+      monto_descuento: montoDescuento.value || 0,
+      subtotal_original: props.producto?.precioTotal || 0,
+      total_con_descuento: totalConDescuento.value
     }
 
     console.log("📦 Enviando pedido:", payload)
@@ -639,6 +695,15 @@ function formatPrice(price) {
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+
+.price-descuento {
+  color: #10b981;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin: 4px 0;
 }
 
 .price-total {

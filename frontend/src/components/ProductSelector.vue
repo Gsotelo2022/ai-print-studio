@@ -240,7 +240,13 @@ function confirmSelection() {
       talleRequerido: talle.value,
       colorRequerido: color.value,
       variantesDisponibles: producto.variantes.length,
+      variantes: producto.variantes,
       varianteEncontrada: varianteEncontrada
+    })
+  } else {
+    console.error('❌ El producto no tiene variantes cargadas:', { 
+      producto: producto?.nombre,
+      variantes: producto?.variantes
     })
   }
 
@@ -248,9 +254,10 @@ function confirmSelection() {
     console.error('❌ No se encontró variante para:', { 
       talle: talle.value, 
       color: color.value,
-      variantes: producto?.variantes 
+      producto: producto?.nombre,
+      variantes: producto?.variantes
     })
-    alert('No se encontró una variante con el talle y color seleccionados')
+    alert(`No se encontró una variante de ${producto?.nombre} con:\n- Talle: ${talle.value || 'N/A'}\n- Color: ${color.value}\n\nPor favor, intenta con otra combinación o recarga la página.`)
     return
   }
 

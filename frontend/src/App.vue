@@ -210,47 +210,80 @@ async function cargarProductosDelAgente() {
   }
   
   productosLoading.value = true
-  console.log('🔄 Cargando productos del agente IA...')
+  console.log('🔄 Cargando productos desde el backend...')
   try {
-    const response = await fetch('http://localhost:5001/productos-ia')
+    // CAMBIO: Usar endpoint del backend (puerto 8000) en lugar del agente IA (puerto 5001)
+    // Esto es más confiable porque las variantes ya están en la base de datos
+    const response = await fetch('http://localhost:8000/api/productos')
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     
-    const data = await response.json()
+    const result = await response.json()
+    
+    // El backend retorna: { success, data: [...] }
+    if (!result.success || !result.data) {
+      throw new Error('Respuesta inválida del backend')
+    }
+    
+    const data = result.data
     productosDelAgente.value = data
     
-    // Transformar estructura del agente a estructura de la app
-    // Agente devuelve: [{ producto: "Remera", talles: [...], colores: [...] }, ...]
-    // App espera: { remera: { nombre: "Remera", talles: [...], colores: [...] }, ... }
+    // Transformar estructura del backend a estructura de la app
+    // Backend devuelve: [{ id_producto, nombre, variantes: [{ id_variante, atributos: {talle, color} }] }]
+    // App espera: { camiseta: { nombre, talles, colores, variantes: [{ id_variante, talle, color }] } }
     
     data.forEach(item => {
-      if (!item?.producto) return // 🔥 evita crash
+      if (!item?.nombre) return
 
-      const key = item.producto.toLowerCase()
+      const key = item.nombre.toLowerCase()
+      
+      // Extraer talles y colores únicos de las variantes
+      const tallesSet = new Set()
+      const coloresSet = new Set()
+      const variantesSimplificadas = []
+      
+      item.variantes?.forEach(variante => {
+        // Extraer talle del atributo
+        const talle = variante.atributos?.talle?.valor
+        const color = variante.atributos?.color?.valor
+        
+        if (talle) tallesSet.add(talle)
+        if (color) coloresSet.add(color)
+        
+        // Simplificar estructura de variante para ProductSelector
+        variantesSimplificadas.push({
+          id_variante: variante.id_variante,
+          talle: talle || null,
+          color: color || null,
+          precio: variante.precio,
+          stock: variante.stock
+        })
+      })
 
       productos[key] = {
         id_producto: item.id_producto,
-        nombre: item.producto,
-        talles: item.talles || [],
-        colores: item.colores || [],
-        variantes: item.variantes || [], // 🔥 IMPORTANTE
-        precio: item.precio || 12000,
-        tienesTalle: Array.isArray(item.talles) && item.talles.length > 0
+        nombre: item.nombre,
+        talles: Array.from(tallesSet).sort(),
+        colores: Array.from(coloresSet).sort(),
+        variantes: variantesSimplificadas,
+        precio: item.precio_desde || 12000,
+        tienesTalle: tallesSet.size > 0
       }
     })
     
-    console.log('✓ Productos cargados del agente:', productos)
+    console.log('✓ Productos cargados desde backend:', Object.keys(productos).length, 'productos')
+    console.log('  Productos:', Object.keys(productos))
     productosLoaded.value = true
   } catch (error) {
-    console.log('⚠ Error cargando productos del agente, usando valores por defecto:', error.message)
+    console.log('⚠ Error cargando productos del backend, usando valores por defecto:', error.message)
     
-    // Fallback: mantener productos hardcodeados si el agente no funciona
+    // Fallback: mantener productos hardcodeados si el backend no funciona
     Object.assign(productos, {
-      camiseta: { nombre: 'Camiseta', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro', 'Gris', 'Azul'], precio: 12000, tienesTalle: true },
-      taza:     { nombre: 'Taza',     talles: [], colores: ['Blanco', 'Negro'], precio: 8000,  tienesTalle: false },
-      sudadera: { nombre: 'Sudadera', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro'], precio: 18000, tienesTalle: true },
-      cojin:    { nombre: 'Cojín',    talles: [], colores: ['Blanco', 'Negro'], precio: 10000, tienesTalle: false },
-      mochila:  { nombre: 'Mochila',  talles: [], colores: ['Negro', 'Gris', 'Azul'], precio: 15000, tienesTalle: false },
-      gorra:    { nombre: 'Gorra',    talles: [], colores: ['Blanco', 'Negro'], precio: 9000,  tienesTalle: false },
+      camiseta: { nombre: 'Camiseta', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro', 'Gris', 'Azul'], variantes: [], precio: 12000, tienesTalle: true },
+      taza:     { nombre: 'Taza',     talles: [], colores: ['Blanco', 'Negro'], variantes: [], precio: 8000,  tienesTalle: false },
+      sudadera: { nombre: 'Sudadera', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro'], variantes: [], precio: 18000, tienesTalle: true },
+      cojin:    { nombre: 'Cojín',    talles: [], colores: ['Blanco', 'Negro'], variantes: [], precio: 10000, tienesTalle: false },
+      mochila:  { nombre: 'Mochila',  talles: [], colores: ['Negro', 'Gris', 'Azul'], variantes: [], precio: 15000, tienesTalle: false },
+      gorra:    { nombre: 'Gorra',    talles: [], colores: ['Blanco', 'Negro'], variantes: [], precio: 9000,  tienesTalle: false },
     })
     productosLoaded.value = true
   } finally {

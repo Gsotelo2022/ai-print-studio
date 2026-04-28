@@ -215,7 +215,7 @@ El sistema implementa tres agentes de Inteligencia Artificial que operan de form
 - Frontend: `frontend/src/components/CuponesDisponibles.vue` (componente reutilizable)
 - Backend: `backend/api_python/app_v2.py` (líneas ~670-820 validación y aplicación)
 
-**Documentación completa:** Ver `PLAN_CUPONES_CLIENTE.md` para guía de implementación detallada.
+**Documentación completa:** Ver sección "Sistema de Cupones - Experiencia de Usuario" en [MANUAL_PROYECTO.md](MANUAL_PROYECTO.md)
 
 ---
 

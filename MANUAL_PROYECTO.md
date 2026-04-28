@@ -771,7 +771,154 @@ Notas:
 └─ Webhook de Mercado Pago
 ```
 
-#### Cupones
+#### Sistema de Cupones - Experiencia de Usuario
+
+##### 📍 ¿Cuándo y dónde se muestran los cupones?
+
+Los cupones se muestran en el **Paso 3: Vista Previa del Pedido** (PreviewPanel), justo DESPUÉS del resumen de precios y ANTES del botón "Confirmar Pedido".
+
+**Ubicación en el flujo:**
+
+```
+1️⃣ Seleccionar Producto
+    ↓
+2️⃣ Crear Diseño (IA)
+    ↓
+3️⃣ Vista Previa
+    ├─ Mockup del producto
+    ├─ Detalles (talle, color, cantidad)
+    ├─ Resumen de precios
+    │
+    ├─ 🎟️ **CUPONES DISPONIBLES** ← Aquí aparecen
+    │   ├─ Badge: "🎟️ Tienes X cupón(es) disponible(s)"
+    │   ├─ O mensaje: "😔 No tienes cupones disponibles"
+    │   └─ Click → Modal con lista de cupones
+    │
+    └─ Botón "Confirmar Pedido"
+```
+
+##### 🎯 Casos de uso
+
+**Caso 1: Cliente CON cupones disponibles**
+
+1. Usuario llega a Vista Previa y ve el resumen con precio del producto
+2. Sistema carga cupones automáticamente consultando `/api/cupones/disponibles/{id_usuario}`
+3. Aparece badge morado: `🎟️ Tienes 2 cupón(es) disponible(s) | Hasta 20% OFF`
+4. Usuario hace clic en el badge y se abre modal con lista de cupones
+5. Modal muestra cada cupón con:
+   - Código (ej: BIENVENIDA10)
+   - Porcentaje de descuento (10% OFF)
+   - Descripción y razón personalizada
+   - Fecha de expiración
+   - Usos restantes
+6. Usuario selecciona cupón haciendo clic en "Aplicar"
+7. Se muestra badge verde con código del cupón y botón "✕" para removerlo
+8. Resumen de precios actualizado:
+   ```
+   Remera                      $2,500
+   🎟️ Descuento (BIENVENIDA10) -10%   -$250
+   Total                       $2,250
+   ```
+9. Usuario confirma pedido con descuento aplicado
+
+**Caso 2: Cliente SIN cupones disponibles**
+
+1. Usuario llega a Vista Previa
+2. Sistema consulta cupones pero no encuentra ninguno aplicable
+3. NO aparece el badge de cupones (sección oculta)
+4. Usuario ve el resumen de precios normal sin descuentos
+5. Usuario confirma pedido con precio completo
+
+##### 🔍 Tipos de cupones según perfil
+
+| Perfil del Cliente | Cupones que ve | Ejemplo |
+|-------------------|----------------|---------|
+| **Nuevo** (0 compras) | BIENVENIDA, PRIMERA | 🎟️ BIENVENIDA10 (10% OFF) |
+| **Regular** (1-4 compras) | Cupones generales | 🎟️ VERANO20 (20% OFF) |
+| **VIP** (5+ compras) | FIDELIDAD, VIP | 🎟️ FIDELIDAD15 (15% OFF) |
+| **Inactivo** (>30 días) | REGRESO, VUELVE | 🎟️ REGRESO25 (25% OFF) |
+| **Alto valor** (>$10,000) | ESPECIAL, ELITE | 🎟️ ELITE25 (25% OFF) |
+
+##### ⚙️ Validaciones del backend
+
+Cuando el usuario confirma el pedido con un cupón, el backend valida:
+
+1. ✅ **Cupón existe y está activo** - Error: "Cupón 'XXX' no válido o inactivo"
+2. ✅ **Cupón no expiró** - Error: "Cupón 'XXX' expirado"
+3. ✅ **Cupón tiene usos disponibles** - Error: "Cupón 'XXX' alcanzó el límite de usos"
+
+Si todas las validaciones pasan:
+- Aplica descuento al total
+- Incrementa contador de usos
+- Crea el pedido con precio con descuento
+
+##### 📊 Ejemplo completo - Cliente nuevo
+
+**Escenario:** María (nueva cliente) compra su primera remera
+
+1. **Estado inicial:**
+   - Cliente: María (0 compras)
+   - Producto: Remera Blanca (Talle M)
+   - Precio: $2,500
+
+2. **Sistema carga cupones:**
+   - Backend analiza: 0 compras → Cliente nuevo
+   - Cupones aplicables: BIENVENIDA10, PRIMERA20
+
+3. **Aparece badge:** `🎟️ Tienes 2 cupón(es) disponible(s) | Hasta 20% OFF`
+
+4. **María ve modal con opciones:**
+   ```
+   BIENVENIDA10 - 10% OFF
+   "¡Es tu primera compra con nosotros!"
+   
+   PRIMERA20 - 20% OFF
+   "Bienvenida a Prendete Rock"
+   ```
+
+5. **María selecciona PRIMERA20 y se muestra:**
+   ```
+   Badge verde: PRIMERA20  -20%  [✕]
+   
+   Resumen:
+   Remera                      $2,500
+   🎟️ Descuento (PRIMERA20) -20%   -$500
+   Total                       $2,000
+   ```
+
+6. **María confirma y backend procesa:**
+   - Valida cupón PRIMERA20 ✅
+   - Aplica 20% descuento ✅
+   - Total final: $2,000 ✅
+   - Incrementa usos del cupón ✅
+
+##### 🚀 Resumen ejecutivo
+
+- **¿Dónde?** Vista Previa del Pedido (PreviewPanel.vue)
+- **¿Cuándo?** Antes de confirmar pedido, después del resumen de precios
+- **¿Cómo funciona?**
+  1. Badge morado si hay cupones disponibles
+  2. Sin badge si no hay cupones
+  3. Click abre modal con lista
+  4. Seleccionar cupón lo aplica automáticamente
+  5. Descuento visible en resumen de precios
+  6. Backend valida al confirmar pedido
+
+- **¿Por qué así?**
+  - Momento justo: cuando el usuario ya decidió comprar
+  - No invasivo: solo aparece si hay cupones
+  - Transparente: muestra descuento en tiempo real
+  - Fácil de usar: un clic para ver, otro para aplicar
+
+##### 📝 Archivos del sistema de cupones
+
+- `frontend/src/components/PreviewPanel.vue` - Integración de cupones
+- `frontend/src/components/CuponesDisponibles.vue` - Componente reutilizable
+- `backend/api_python/app_v2.py` - Validación y aplicación de cupones (líneas ~670-820)
+
+---
+
+#### Cupones - Endpoints Técnicos
 
 **GET /api/cupones/disponibles/{id_cliente}**
 
@@ -855,8 +1002,7 @@ Errores:
 - Modal para seleccionar y aplicar cupones
 - Cálculo automático de descuento en el resumen del pedido
 
-**Documentación completa:** Ver `PLAN_CUPONES_CLIENTE.md`
-
+---
 
 #### Panel de Administrador - Gestión de Cupones
 

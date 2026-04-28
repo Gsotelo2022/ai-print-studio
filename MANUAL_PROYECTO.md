@@ -572,181 +572,23 @@ json_success(data) -> dict
 └─ Formato: { "success": True, "data": ... }
 ```
 
-### Agente de IA (OLLAMA)
+### Agentes de IA (OLLAMA)
 
-El agente de IA es un servicio adicional que proporciona un catálogo dinámico de productos utilizando OLLAMA (modelo de lenguaje local).
+El sistema implementa tres agentes de Inteligencia Artificial que operan de forma asincrónica:
 
-#### Componentes del Agente
+| Agente | Puerto | Función Principal | README |
+|--------|--------|-------------------|--------|
+| **Productos** | 5001 | Catálogo dinámico desde BD | [📖 Ver documentación](agentes-Ollama/agente-productos/README.md) |
+| **Precios** | 5002 | Actualización de precios vía IA | [📖 Ver documentación](agentes-Ollama/agente-precios/README.md) |
+| **Cupones** | 5003 | Gestión inteligente de descuentos | [📖 Ver documentación](agentes-Ollama/agente-cupones/README.md) |
 
-**agente_productos.py** (Servidor Flask)
-```python
-Responsabilidades:
-├─ Conectar a SQL Server y obtener productos
-├─ Agrupar productos por tipo, color y talle
-├─ Usar OLLAMA para procesar y estructurar datos
-├─ Exponer endpoint /productos-ia
+**Características comunes:**
+- 🤖 Procesamiento con OLLAMA (modelo qwen2.5:1.5b)
+- 🔄 Fallback automático si OLLAMA falla
+- ⚡ APIs REST para integración con frontend
+- 🔗 Integración con backend FastAPI y SQL Server
 
-Puerto: 5001
-Modelo: qwen2.5:1.5b (986 MB, optimizado para hardware limitado)
-Límite: None (procesa TODOS los productos - 85 en PrendeteRock)
-
-Flujo de Procesamiento:
-1. Query SQL: SELECT Detalle, Color, talle FROM Productos
-2. Construcción de prompt optimizado para OLLAMA
-3. OLLAMA procesa con qwen2.5:1.5b (timeout: 60s)
-4. Parseo y limpieza de respuesta JSON
-5. Fallback automático a Python si OLLAMA falla
-6. Retorno de catálogo agrupado al frontend
-```
-
-**Endpoint Principal:**
-```http
-GET http://localhost:5001/productos-ia
-
-Respuesta (Ejemplo real con 85 productos):
-[
-  {
-    "producto": "Buzo",
-    "talles": ["S", "M", "L", "X", "XL", "XXL"],
-    "colores": ["Blanca", "Negra", "Roja", "Azul"]
-  },
-  {
-    "producto": "Remera",
-    "talles": ["S", "M", "L", "XL"],
-    "colores": ["Blanco", "Negro", "Rojo"]
-  },
-  {
-    "producto": "Taza",
-    "talles": [],
-    "colores": ["Blanco", "Negro"]
-  }
-]
-
-Tiempo de respuesta:
-├─ Con 10 productos: ~15-30 segundos
-├─ Con 20 productos: ~30-45 segundos
-├─ Con 50 productos: ~45-60 segundos
-└─ Con 85 productos: ~60-90 segundos (puede usar fallback)
-
-Fallback automático:
-Si OLLAMA no responde en 60s, el agente usa agrupamiento Python puro
-para garantizar disponibilidad del servicio.
-```
-
-#### Configuración del Agente
-
-**Requisitos:**
-- OLLAMA instalado (https://ollama.com)
-- Modelo descargado: `ollama pull qwen2.5:1.5b`
-- Python 3.9+ con Flask y pyodbc
-
-**Activación/Desactivación:**
-
-El agente se puede activar/desactivar editando `RUN.bat`:
-```batch
-REM Buscar esta línea:
-set OLLAMA_AVAILABLE=0  REM 0=Desactivado, 1=Activado
-```
-
-**Integración con Frontend:**
-
-El frontend (App.vue) intenta cargar productos del agente al iniciar:
-```javascript
-async function cargarProductosDelAgente() {
-  try {
-    const response = await fetch('http://localhost:5001/productos-ia')
-    const data = await response.json()
-    
-    // Transforma a formato del frontend
-    productos.value = data.map(item => ({
-      id: generarId(item.producto),
-      nombre: item.producto,
-      talles: item.talles,
-      colores: item.colores,
-      precios: obtenerPreciosDesdeConfig(item.producto)
-    }))
-    
-    console.log('✅ Productos cargados del agente IA')
-  } catch (error) {
-    console.warn('⚠️ Agente IA no disponible, usando lista estática')
-    // Fallback a lista hardcoded
-  }
-}
-```
-
-**Flujo Completo: BD → OLLAMA → Frontend**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  CIRCUITO DEL AGENTE IA                     │
-└─────────────────────────────────────────────────────────────┘
-
-1. CONSULTA BD (Python + pyodbc)
-   └─→ SELECT Detalle, Color, talle FROM Productos
-   └─→ Retorna 85 registros
-
-2. CONSTRUCCIÓN DE PROMPT
-   └─→ Prompt optimizado: "Agrupa por producto, lista talles y colores"
-   └─→ Incluye datos JSON de los 85 productos
-
-3. LLAMADA A OLLAMA
-   └─→ POST http://localhost:11434/api/generate
-   └─→ Model: qwen2.5:1.5b
-   └─→ Timeout: 60 segundos
-   └─→ OLLAMA procesa y agrupa inteligentemente
-
-4. PARSEO DE RESPUESTA
-   └─→ Extrae JSON de respuesta OLLAMA
-   └─→ Limpia markdown, code blocks, etc.
-   └─→ Valida estructura del JSON
-
-5. FALLBACK (si necesario)
-   └─→ Si OLLAMA timeout o error:
-   └─→ Usa agrupamiento Python puro
-   └─→ Garantiza disponibilidad 100%
-
-6. RESPUESTA AL FRONTEND
-   └─→ JSON estructurado:
-       [
-         {
-           "producto": "Buzo",
-           "talles": ["S", "M", "L", "X", "XL", "XXL"],
-           "colores": ["Blanca", "Negra", "Roja", "Azul"]
-         },
-         ...
-       ]
-
-7. FRONTEND RENDERIZA
-   └─→ ProductSelector.vue muestra opciones dinámicas
-   └─→ Usuario selecciona producto, talle y color
-   └─→ Opciones siempre actualizadas desde BD
-```
-
-#### Scripts Relacionados
-
-- `agentes-Ollama/agente_productos.py` - Servidor Flask principal
-- `agentes-Ollama/test_agente.py` - Test individual del agente
-- `test-agente-completo.py` - Test completo (BD + OLLAMA + Flask)
-- `test-circuito.ps1` - Test automatizado del circuito completo
-- `descargar-modelo-ia.bat` - Descarga el modelo OLLAMA
-- `agentes-Ollama/setup_agente.bat` - Configura entorno virtual
-- `MODO-PRUEBA-AGENTE.md` - Documentación de configuración del agente
-- `verificar-sistema.py` - Verifica requisitos del sistema (Python, OLLAMA, BD)
-
-#### Logs y Debug
-
-El agente muestra logs detallados en consola:
-```
-[DEBUG] Conectando a BD...
-[DB] ✓ Conectado a SQL Server
-[DB] Ejecutando SELECT... (Total: 85 productos)
-[DB] Obtenidos 85 registros
-[DEBUG] Construyendo prompt...
-[OLLAMA] Enviando petición a http://localhost:11434...
-[OLLAMA] ✓ Respuesta recibida en 45.3s
-[DEBUG] Parseando respuesta JSON...
-[API] ✓ Retornando 5 productos agrupados
-```
+**Nota:** Cada agente incluye documentación técnica completa en su README con endpoints, ejemplos, troubleshooting e integración con el sistema.
 
 ---
 
@@ -928,6 +770,200 @@ Salida (200):
 Notas:
 └─ Webhook de Mercado Pago
 ```
+
+#### Cupones
+
+**GET /api/cupones/disponibles/{id_cliente}**
+
+**Descripción:** Endpoint inteligente que analiza el perfil del cliente y retorna cupones personalizados según su historial de compras y comportamiento.
+
+**Características principales:**
+- ⚡ Respuesta rápida (solo SQL, sin procesamiento IA)
+- 🎯 Perfilado automático del cliente
+- 📊 Reglas de negocio integradas
+- 🔄 No requiere servicios adicionales
+
+**Reglas de negocio:**
+
+| Tipo | Condición | Código Ejemplo |
+|------|-----------|----------------|
+| BIENVENIDA | Sin compras (0 pedidos) | `BIENVENIDA10` |
+| FIDELIDAD | 5+ compras | `FIDELIDAD15`, `VIP20` |
+| REGRESO | Inactivo >30 días | `REGRESO25` |
+| ESPECIAL | Gasto >$10,000 | `ESPECIAL30` |
+| GENERAL | Todos | `VERANO20` |
+
+```json
+Entrada:
+GET /api/cupones/disponibles/1
+
+Salida (200):
+{
+  "success": true,
+  "data": {
+    "cupones": [
+      {
+        "id_cupon": 1,
+        "codigo": "BIENVENIDA10",
+        "descuento": 10,
+        "descripcion": "Descuento de bienvenida para nuevos clientes",
+        "expiracion": "2026-05-31",
+        "es_limitado": true,
+        "usos_restantes": 50,
+        "categoria": "primera_compra",
+        "razon": "¡Es tu primera compra con nosotros!"
+      },
+      {
+        "id_cupon": 5,
+        "codigo": "VERANO20",
+        "descuento": 20,
+        "descripcion": "Promoción de verano",
+        "expiracion": "2026-06-30",
+        "es_limitado": false,
+        "usos_restantes": null,
+        "categoria": "general",
+        "razon": null
+      }
+    ],
+    "perfil_cliente": {
+      "total_pedidos": 0,
+      "gasto_total": 0,
+      "dias_inactivo": null,
+      "es_cliente_nuevo": true,
+      "es_cliente_vip": false,
+      "ultima_compra": null
+    },
+    "total": 2,
+    "mensaje": "¡Tienes 2 cupón(es) disponible(s)!"
+  }
+}
+
+Errores:
+├─ 404: Cliente no encontrado
+└─ 500: Error del servidor
+```
+
+**Ventajas:**
+1. **Performance:** Consultas SQL optimizadas (< 50ms)
+2. **Escalabilidad:** No depende de agentes IA adicionales
+3. **Personalización:** Cada cliente ve cupones relevantes
+4. **Automatización:** Reglas aplicadas automáticamente
+5. **Conversión:** Incentiva compra, fidelidad y reactivación
+
+**Integración Frontend:**
+- Badge en carrito/checkout mostrando cupones disponibles
+- Modal para seleccionar y aplicar cupones
+- Cálculo automático de descuento en el resumen del pedido
+
+**Documentación completa:** Ver `PLAN_CUPONES_CLIENTE.md`
+
+
+#### Panel de Administrador - Gestión de Cupones
+
+El panel de administrador incluye una sección completa para gestionar cupones de descuento.
+
+**Endpoints de Admin:**
+
+**POST /api/admin/cupones**
+```json
+Entrada:
+{
+  "codigo": "BLACKFRIDAY50",
+  "descuento": 50.0,
+  "descripcion": "Descuento Black Friday",
+  "fecha_expiracion": "2026-11-30",
+  "es_limitado": true,
+  "usos_maximos": 100,
+  "categoria": "especial"
+}
+
+Salida (201):
+{
+  "success": true,
+  "data": {
+    "id_cupon": 15,
+    "codigo": "BLACKFRIDAY50",
+    "descuento": 50.0,
+    "mensaje": "Cupón creado exitosamente"
+  }
+}
+```
+
+**GET /api/admin/cupones**
+```
+Query params:
+├─ activo: true/false
+├─ categoria: primera_compra, fidelidad, general, especial
+└─ limit: 50 (default)
+
+Salida (200):
+{
+  "success": true,
+  "cupones": [
+    {
+      "id_cupon": 1,
+      "codigo": "VIP25",
+      "descuento": 25,
+      "fecha_creacion": "2026-01-15",
+      "fecha_expiracion": "2026-12-31",
+      "usos_totales": 45,
+      "usos_restantes": 55,
+      "activo": true,
+      "categoria": "fidelidad"
+    }
+  ],
+  "total": 12
+}
+```
+
+**PUT /api/admin/cupones/{id_cupon}**
+```json
+Entrada:
+{
+  "activo": false,
+  "usos_maximos": 200,
+  "fecha_expiracion": "2027-01-31"
+}
+
+Salida (200):
+{
+  "success": true,
+  "mensaje": "Cupón actualizado correctamente"
+}
+```
+
+**GET /api/admin/cupones/estadisticas**
+```json
+Salida (200):
+{
+  "success": true,
+  "data": {
+    "total_cupones": 12,
+    "activos": 8,
+    "inactivos": 4,
+    "mas_usados": [
+      {"codigo": "BIENVENIDA10", "usos": 234},
+      {"codigo": "VERANO20", "usos": 189}
+    ],
+    "descuento_promedio": 14.5,
+    "ahorro_total_clientes": 2450000
+  }
+}
+```
+
+**Componente Frontend:** `GestionCupones.vue`
+
+Características:
+- 📊 Dashboard con métricas clave
+- 🎫 Tabla CRUD de cupones
+- ➕ Modal para crear cupón
+- ✏️ Modal para editar cupón
+- 📈 Gráficos de uso
+- 🔍 Búsqueda y filtros
+- 📥 Exportar a CSV/Excel
+
+**Integración con Agente:** El agente de cupones (puerto 5003) se integra para funcionalidades avanzadas. Ver [documentación del agente](agentes-Ollama/agente-cupones/README.md).
+
 
 #### Admin
 

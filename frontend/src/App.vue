@@ -17,8 +17,10 @@
           
           <!-- Cliente logueado -->
           <template v-if="userLogged && userType === 'cliente'">
+            <a href="#" @click.prevent="openHome" class="nav-link">Home</a>
             <a href="#" @click.prevent="goToDashboard" class="nav-link">Crear</a>
             <a href="#" @click.prevent="goToMyDesigns" class="nav-link">Mis Diseños</a>
+            <a href="#" @click.prevent="goToMyOrders" class="nav-link">Mis Pedidos</a>
             <a href="#" @click.prevent="handleLogout" class="nav-link">Cerrar Sesión</a>
           </template>
         </nav>
@@ -49,7 +51,7 @@
       </section>
 
       <!-- DASHBOARD USUARIO LOGUEADO: Opciones iniciales (Subir imagen o Generar con IA) -->
-      <section v-if="userLogged && !imageSourceMode && !generatedImage && !showMyDesigns" class="workflow-section dashboard-section">
+      <section v-if="userLogged && !imageSourceMode && !generatedImage && !showMyDesigns && !showMyOrders && userType === 'cliente'" class="workflow-section dashboard-section">
         <div class="dashboard-header">
           <h2 class="dashboard-title">Creá estampados únicos con IA</h2>
           <p class="dashboard-subtitle">Subí una imagen o escribe una idea y genera diseños en segundos</p>
@@ -76,12 +78,28 @@
             <p class="hero-subtitle">Crea tus propias estampas personalizables subiendo tus ideas e imágenes, y deja que nuestra IA te ayude a generar diseños únicos.</p>
             
             <div class="hero-buttons">
-              <!-- <button @click="imageSourceMode = 'upload'" class="btn btn-primary">
-                📁 Subir imagen
+              <button @click="openRegister" class="btn btn-primary btn-large">
+                🚀 Comenzar ahora
               </button>
-              <button @click="imageSourceMode = 'generate'" class="btn btn-primary">
-                🤖 Generar con IA
-              </button> -->
+              <button @click="openLogin" class="btn btn-secondary btn-large">
+                🔐 Ya tengo cuenta
+              </button>
+            </div>
+
+            <!-- Características -->
+            <div class="hero-features">
+              <div class="feature-item">
+                <span class="feature-icon">🤖</span>
+                <span class="feature-text">IA Generativa</span>
+              </div>
+              <div class="feature-item">
+                <span class="feature-icon">🎨</span>
+                <span class="feature-text">Diseños Únicos</span>
+              </div>
+              <div class="feature-item">
+                <span class="feature-icon">⚡</span>
+                <span class="feature-text">Entrega Rápida</span>
+              </div>
             </div>
           </div>
         </div>
@@ -98,17 +116,17 @@
       </section>
 
       <!-- PASO 1B: SUBIR IMAGEN -->
-      <section v-if="imageSourceMode === 'upload' && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && imageSourceMode === 'upload' && userType === 'cliente'" class="workflow-section">
         <ImageUploader @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
       <!-- PASO 1C: GENERAR CON IA -->
-      <section v-if="imageSourceMode === 'generate' && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && imageSourceMode === 'generate' && userType === 'cliente'" class="workflow-section">
         <GenerateImage @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
       <!-- PASO 2: EDITAR/REMOVER FONDO DE IMAGEN -->
-      <section v-if="showBackgroundRemover && generatedImage && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && showBackgroundRemover && generatedImage && userType === 'cliente'" class="workflow-section">
         <BackgroundRemover
           :imagenUrl="generatedImage"
           @image-processed="onImageProcessed"
@@ -118,7 +136,7 @@
       </section>
 
       <!-- PASO 3: SELECCIONAR PRODUCTO -->
-      <section v-if="generatedImage && !selectedProduct && !showBackgroundRemover && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && generatedImage && !selectedProduct && !showBackgroundRemover && userType === 'cliente'" class="workflow-section">
         <ProductSelector
           :productos="productos"
           :loading="productosLoading"
@@ -129,16 +147,16 @@
       </section>
 
       <!-- GALERÍA DE DISEÑOS -->
-      <section v-if="showMyDesigns && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && showMyDesigns && userType === 'cliente' && currentUser" class="workflow-section">
         <MisDisenosGaleria
-          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
+          :user-id="currentUser.id_usuario || currentUser.user_id || currentUser.id"
           @design-selected="onDesignSelected"
           @go-back="closeMyDesigns"
         />
       </section>
 
       <!-- PASO 3: VISTA PREVIA -->
-      <section v-if="selectedProduct && !orderData && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && selectedProduct && !orderData && userType === 'cliente'" class="workflow-section">
         <PreviewPanel
           :imagen-url="generatedImage"
           :producto="selectedProduct"
@@ -150,7 +168,7 @@
       </section>
 
       <!-- PASO 4: CHECKOUT -->
-      <section v-if="orderData && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && orderData && userType === 'cliente'" class="workflow-section">
         <CheckoutPanel
           :order="orderData"
           :imagen-url="generatedImage"
@@ -191,6 +209,7 @@ const userType = ref('cliente') // 'cliente' o 'admin'
 const showRegistrationForm = ref(false) // mostrar formulario de registro
 const showLoginForm = ref(false) // mostrar formulario de login
 const showMyDesigns = ref(false) // mostrar galería de diseños
+const showMyOrders = ref(false) // mostrar mis pedidos
 const currentUser = ref(null) // datos del usuario logueado
 
 const currentStep = ref(0)
@@ -398,16 +417,14 @@ function onLoginSuccess(loginData) {
   }
 
   userLogged.value = true
+  userType.value = loginData.tipo || 'cliente'
   showLoginForm.value = false
 
-  const tipoUsuario = loginData.tipo?.toLowerCase()
-  userType.value = (tipoUsuario === 'administrador' || tipoUsuario === 'admin') ? 'admin' : 'cliente'
+  // Cargar productos después del login
+  cargarProductosDelAgente()
 
-  console.log('🔑 Tipo de usuario:', tipoUsuario, '→', userType.value)
-
-  if (userType.value === 'cliente') {
-    cargarProductosDelAgente()
-  }
+  // Al loguearse, ir al home en lugar del dashboard de creación
+  openHome()
 }
 
 function handleForgotPassword() {
@@ -426,74 +443,103 @@ function openLogin() {
 }
 
 function openHome() {
-  // volver al estado inicial: mostrar home (hero) y ocultar formularios
-  if (userLogged.value) {
-    // Si está logueado, ir al dashboard
-    goToDashboard()
-  } else {
-    // Si no está logueado, mostrar hero
-    showRegistrationForm.value = false
-    showLoginForm.value = false
-    imageSourceMode.value = null
-    generatedImage.value = null
-    selectedProduct.value = null
-    orderData.value = null
-  }
-}
-
-function goToDashboard() {
-  // Mostrar dashboard de usuario (opciones de crear)
+  // Resetea la vista al home principal, manteniendo al usuario logueado
   imageSourceMode.value = null
   generatedImage.value = null
-  selectedProduct.value = null
-  orderData.value = null
-  showMyDesigns.value = false
-}
-
-function goToMyDesigns() {
-  // Mostrar galería de diseños del usuario
-  console.log('📸 Abriendo Mis Diseños...')
-  imageSourceMode.value = null
-  generatedImage.value = null
-  selectedProduct.value = null
-  orderData.value = null
+  lastPrompt.value = ''
   showBackgroundRemover.value = false
-  showMyDesigns.value = true
-}
-
-function closeMyDesigns() {
-  // Cerrar galería y volver al dashboard
-  showMyDesigns.value = false
-}
-
-function onDesignSelected(designData) {
-  // Usuario seleccionó un diseño para reutilizar
-  console.log('✅ Diseño reutilizado:', designData)
-  
-  // Cargar la imagen y prompt del diseño seleccionado
-  generatedImage.value = designData.imagen_url
-  lastPrompt.value = designData.prompt
-  
-  // Cerrar galería y pasar al selector de productos
-  showMyDesigns.value = false
-  showBackgroundRemover.value = false
-  
-  // El usuario ahora verá ProductSelector con el diseño cargado
-}
-
-function handleLogout() {
-  // Cerrar sesión
-  userLogged.value = false
-  currentUser.value = null
-  userType.value = 'cliente'
-  imageSourceMode.value = null
-  generatedImage.value = null
   selectedProduct.value = null
   orderData.value = null
   showRegistrationForm.value = false
   showLoginForm.value = false
-  localStorage.removeItem('userEmail')
+  showMyDesigns.value = false
+  showMyOrders.value = false
 }
+
+function goToMyOrders() {
+  if (!userLogged.value || !currentUser.value) {
+    console.error('❌ Usuario no logueado, redirigiendo al login')
+    openLogin()
+    return
+  }
+  openHome() // Resetea la vista
+  showMyOrders.value = true
+}
+
+function goToDashboard() {
+  if (!userLogged.value || !currentUser.value) {
+    console.error('❌ Usuario no logueado, redirigiendo al login')
+    openLogin()
+    return
+  }
+  openHome()
+  // Forzar la vista de selección de modo (upload/generate)
+  imageSourceMode.value = null // Asegurarse de que no esté en un modo
+  // La condición v-if se encargará de mostrar el dashboard correcto
+}
+
+function goToMyDesigns() {
+  if (!userLogged.value || !currentUser.value) {
+    console.error('❌ Usuario no logueado, redirigiendo al login')
+    openLogin()
+    return
+  }
+  openHome() // Resetea otras vistas
+  showMyDesigns.value = true
+}
+
+function closeMyDesigns() {
+  showMyDesigns.value = false
+  openHome()
+}
+
+function onDesignSelected({ imagen_url, prompt, id_archivo }) {
+  console.log('🖼️ Diseño seleccionado desde galería:', { imagen_url, prompt, id_archivo })
+  // Cargar datos del diseño
+  generatedImage.value = imagen_url
+  lastPrompt.value = prompt
+  // Opcional: guardar el id_archivo si es necesario para el pedido
+  
+  // Cerrar galería y avanzar al siguiente paso
+  showMyDesigns.value = false
+  showBackgroundRemover.value = false // Saltar el editor de fondo
+  currentStep.value = 1 // Avanzar a ProductSelector
+}
+
+
+// ============================
+// INICIALIZACIÓN
+// ============================
+onMounted(() => {
+  // Comprobar si hay un usuario en localStorage al cargar
+  const savedUser = localStorage.getItem('currentUser')
+  if (savedUser) {
+    try {
+      const userData = JSON.parse(savedUser)
+      // Validar que tenga los campos necesarios
+      if (userData && userData.id_usuario && userData.tipo) {
+        onLoginSuccess(userData)
+      } else {
+        // Datos inválidos, limpiar localStorage
+        console.warn('⚠️ Datos de usuario inválidos en localStorage, limpiando...')
+        localStorage.removeItem('currentUser')
+      }
+    } catch (error) {
+      console.error('❌ Error al parsear usuario desde localStorage:', error)
+      localStorage.removeItem('currentUser')
+    }
+  }
+})
+
+// Watcher para guardar el estado del usuario en localStorage
+watch(currentUser, (newUser) => {
+  if (newUser && newUser.id_usuario) {
+    localStorage.setItem('currentUser', JSON.stringify(newUser))
+  } else {
+    localStorage.removeItem('currentUser')
+  }
+})
+
 </script>
 
 <style scoped>
@@ -759,6 +805,39 @@ function handleLogout() {
   border-color: #2563eb;
   transform: translateY(-3px);
   box-shadow: 0 12px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-large {
+  padding: 18px 40px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.hero-features {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(6, 182, 212, 0.1);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.feature-icon {
+  font-size: 20px;
+}
+
+.feature-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
 }
 
 .btn-variant {

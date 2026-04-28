@@ -825,6 +825,9 @@ def create_order(payload: dict):
                         # Prompt usado
                         prompt_usado = payload.get("prompt") or payload.get("notas_cliente") or "Diseño personalizado"
                         
+                        # Detectar si es imagen subida o generada por IA
+                        es_generado_ia = 0 if prompt_usado.lower() == "imagen subida por usuario" else 1
+                        
                         # Insertar en BD
                         cur.execute("""
                             INSERT INTO Archivos_Diseno (
@@ -845,7 +848,7 @@ def create_order(payload: dict):
                             ancho,
                             alto,
                             hash_md5,
-                            1,  # es_generado_ia
+                            es_generado_ia,  # 🎯 DINÁMICO: 0 para subidas, 1 para IA
                             prompt_usado
                         ))
                         
@@ -1925,47 +1928,49 @@ def consulta_ia(payload: ConsultaIA):
 # ============================================================
 # ENDPOINT: REMOVER FONDO CON IA (LOCAL)
 # ============================================================
+# ENDPOINT DUPLICADO - COMENTADO (usar el de arriba que devuelve base64)
+# ============================================================
 
-@app.post("/api/remove-background")
-async def remove_background(file: UploadFile = File(...)):
-    try:
-        from rembg import remove
+# @app.post("/api/remove-background")
+# async def remove_background(file: UploadFile = File(...)):
+#     try:
+#         from rembg import remove
 
-        # Validar tipo
-        if not file.content_type.startswith("image/"):
-            raise HTTPException(400, {"success": False, "error": "Solo imágenes permitidas"})
+#         # Validar tipo
+#         if not file.content_type.startswith("image/"):
+#             raise HTTPException(400, {"success": False, "error": "Solo imágenes permitidas"})
 
-        # Leer imagen
-        input_bytes = await file.read()
+#         # Leer imagen
+#         input_bytes = await file.read()
 
-        # IA (rembg)
-        output_bytes = remove(input_bytes)
+#         # IA (rembg)
+#         output_bytes = remove(input_bytes)
 
-        # 📁 Carpeta destino
-        carpeta = BASE_DIR / "backend" / "api" / "imagenes-generadas-con-IA"
-        carpeta.mkdir(parents=True, exist_ok=True)
+#         # 📁 Carpeta destino
+#         carpeta = BASE_DIR / "backend" / "api" / "imagenes-generadas-con-IA"
+#         carpeta.mkdir(parents=True, exist_ok=True)
 
-        # 🧾 Nombre único (mejorado para evitar colisiones)
-        nombre = f"sin_fondo_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
-        ruta = carpeta / nombre
+#         # 🧾 Nombre único (mejorado para evitar colisiones)
+#         nombre = f"sin_fondo_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
+#         ruta = carpeta / nombre
 
-        # 💾 Guardar archivo
-        with open(ruta, "wb") as f:
-            f.write(output_bytes)
+#         # 💾 Guardar archivo
+#         with open(ruta, "wb") as f:
+#             f.write(output_bytes)
 
-        # 🌐 URL
-        url = f"http://localhost:8000/api/imagen/{nombre}"
+#         # 🌐 URL
+#         url = f"http://localhost:8000/api/imagen/{nombre}"
 
-        return {
-            "success": True,
-            "data": {
-                "imagen_url": url
-            }
-        }
+#         return {
+#             "success": True,
+#             "data": {
+#                 "imagen_url": url
+#             }
+#         }
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail={"success": False, "error": str(e)}
-        )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail={"success": False, "error": str(e)}
+#         )
     

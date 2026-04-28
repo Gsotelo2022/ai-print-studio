@@ -40,6 +40,7 @@ const emit = defineEmits(['image-generated', 'go-back'])
 const file = ref(null)
 const preview = ref(null)
 const loading = ref(false)
+const base64Image = ref(null) // Guardar la versión base64
 
 // Cuando el usuario selecciona archivo
 function onFileChange(e) {
@@ -48,12 +49,20 @@ function onFileChange(e) {
 
   file.value = selected
   preview.value = URL.createObjectURL(selected)
+  
+  // Convertir a base64 para enviar al backend
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    base64Image.value = event.target.result
+    console.log('✅ Imagen convertida a base64')
+  }
+  reader.readAsDataURL(selected)
 }
 
 // Emitir imagen (irá al BackgroundRemover después en App.vue)
 function emitImage() {
   emit('image-generated', {
-    imagen_url: preview.value,
+    imagen_url: base64Image.value || preview.value, // Usar base64 si está disponible
     prompt: 'imagen subida por usuario'
   })
 }

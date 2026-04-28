@@ -267,6 +267,13 @@ const disenosFiltrados = computed(() => {
 
 // Funciones
 async function cargarDisenos() {
+  // Validar que userId sea válido
+  if (!props.userId || isNaN(props.userId)) {
+    console.error('❌ userId inválido:', props.userId)
+    error.value = 'No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.'
+    return
+  }
+  
   cargando.value = true
   error.value = null
   
@@ -837,7 +844,7 @@ onMounted(() => {
   
   .stats-bar {
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
   }
 }
 

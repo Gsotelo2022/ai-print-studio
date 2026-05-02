@@ -46,6 +46,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useApi } from '../composables/useApi.js';
 
 const props = defineProps({
   userId: {
@@ -57,29 +58,15 @@ const props = defineProps({
 const emit = defineEmits(['go-back']);
 
 const pedidos = ref([]);
-const cargando = ref(false);
-const error = ref(null);
+const { getMisPedidos, loading: cargando, error } = useApi();
+
 
 async function cargarPedidos() {
   if (!props.userId) return;
-
-  cargando.value = true;
-  error.value = null;
   try {
-    const response = await fetch(`http://localhost:8000/api/mis-pedidos/${props.userId}`);
-    if (!response.ok) {
-      throw new Error('Error al obtener los pedidos');
-    }
-    const data = await response.json();
-    if (data.success) {
-      pedidos.value = data.data;
-    } else {
-      throw new Error(data.error || 'No se pudieron cargar los pedidos');
-    }
+    pedidos.value = await getMisPedidos(props.userId);
   } catch (err) {
-    error.value = err.message;
-  } finally {
-    cargando.value = false;
+    // el error ya queda en `error` del composable
   }
 }
 
@@ -97,8 +84,7 @@ function getEstadoClass(estado) {
 }
 
 function onImageError(event) {
-  // Reemplazar con una imagen placeholder si el thumbnail no carga
-  event.target.src = 'https://via.placeholder.com/100';
+  event.target.style.display = 'none';
 }
 
 

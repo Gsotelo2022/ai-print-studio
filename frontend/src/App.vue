@@ -106,13 +106,13 @@
 
         <!-- marca de agua: se aplica vía CSS ::before para que quede centrada y no se recorte -->
 
-        <!-- Carrusel de Ejemplos -->
+        <!-- Carrusel de Ejemplos
         <div class="examples-section">
           <div class="example-card" v-for="i in 3" :key="i">
             <div class="example-placeholder"></div>
           </div>
           <button class="carousel-nav next">›</button>
-        </div>
+        </div> -->
       </section>
 
       <!-- PASO 1B: SUBIR IMAGEN -->

@@ -82,6 +82,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useApi } from '../composables/useApi.js'
 
 const props = defineProps({
   order:     { type: Object, required: true },
@@ -130,18 +131,13 @@ async function pay() {
 
   try {
     // Llamar al backend para crear preferencia en MercadoPago
-    const response = await fetch('http://localhost:8080/api/create-payment.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: props.order.order_id,
-        producto: props.producto.nombre,
-        precio: props.order.precio_total,
-        cantidad: props.order.cantidad
-      })
+    const { createPayment } = useApi()
+    const data = await createPayment({
+      order_id: props.order.order_id,
+      producto: props.producto.nombre,
+      precio: props.order.precio_total,
+      cantidad: props.order.cantidad,
     })
-
-    const data = await response.json()
 
     // Redirigir al usuario a MercadoPago
     // En testing usar sandbox_url, en producción usar init_point

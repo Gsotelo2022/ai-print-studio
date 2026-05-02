@@ -47,7 +47,8 @@ export function useApi() {
           throw new Error(result.detail?.error || 'Este email ya está registrado.')
         }
         if (response.status === 500) {
-          throw new Error(result.detail?.error || 'Error del servidor. Intenta más tarde.')
+          console.error("ERROR BACKEND:", result)
+          throw new Error(JSON.stringify(result))
         }
         throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
       }
@@ -148,9 +149,9 @@ export function useApi() {
 
   // --- Funciones específicas para cada endpoint ---
 
-  // Generar imagen con Stability AI
+  // Generar imagen con IA (OpenAI DALL·E via FastAPI)
   async function generateImage(prompt, options = {}) {
-    return post('http://localhost:8080/api/generate-image.php', {
+    return post(`${baseApi}/generate-image`, {
       prompt,
       style: options.style || 'realista',
       width: options.width || 1024,
@@ -160,14 +161,12 @@ export function useApi() {
 
   // Crear pedido en la base de datos
   async function createOrder(orderData) {
-    return post('/api/create-order.php', orderData)
+    return post(`${baseApi}/create-order`, orderData)
   }
 
-  // Crear pago con MercadoPago
-  async function createPayment(orderId) {
-    return post('http://localhost:8080/api/create-payment.php', {
-      order_id: orderId,
-    })
+  // Crear pago con MercadoPago (via FastAPI)
+  async function createPayment(orderData) {
+    return post(`${baseApi}/create-payment`, orderData)
   }
 
   // Obtener todos los pedidos para el admin
@@ -237,6 +236,11 @@ export function useApi() {
     return post(`${baseApi}/admin/productos`, productoData)
   }
 
+  // Obtener pedidos del usuario autenticado
+  async function getMisPedidos(idUsuario) {
+    return get(`${baseApi}/mis-pedidos/${idUsuario}`)
+  }
+
   // Retornamos todo lo que los componentes necesitan
   return {
     loading,
@@ -258,5 +262,6 @@ export function useApi() {
     updatePrecioProducto,
     deleteProducto,
     createProducto,
+    getMisPedidos,
   }
 }

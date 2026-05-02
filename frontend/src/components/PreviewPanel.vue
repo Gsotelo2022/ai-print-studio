@@ -191,6 +191,7 @@
 <script setup>
 import { reactive, computed, ref, onMounted } from 'vue'
 import CuponesDisponibles from './CuponesDisponibles.vue'
+import { useApi } from '../composables/useApi.js'
 
 // --- Props ---
 const props = defineProps({
@@ -439,22 +440,15 @@ async function pagar() {
     loadingPago.value = true
     errorPago.value = null
 
-    const response = await fetch('http://localhost:8080/api/create-payment.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: orderId.value,
-        producto: props.producto.nombre,
-        precio: props.producto.precioTotal,
-        cantidad: props.producto.cantidad
-      })
+    const { createPayment } = useApi()
+    const data = await createPayment({
+      order_id: orderId.value,
+      producto: props.producto.nombre,
+      precio: props.producto.precioTotal,
+      cantidad: props.producto.cantidad,
     })
 
-    const data = await response.json()
-    
-    if (data.success === false || data.error) {
-      throw new Error(data.error?.response || data.error || 'Error en MercadoPago')
-    }
+    if (!data) throw new Error('No se recibió respuesta de MercadoPago')
 
     // Obtener la URL de pago
     const payUrl = data.sandbox_url || data.payment_url || data.init_point

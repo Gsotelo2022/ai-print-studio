@@ -34,8 +34,7 @@ const users = ref([])
 
 async function loadUsers() {
   try {
-    // Ajusta la URL según dónde sirvas el backend (XAMPP ejemplo: http://localhost/api/...) 
-    users.value = await get('http://localhost/ai-print-studio/backend/api/get-users.php')
+    users.value = await get('http://localhost:8000/api/users')
   } catch (err) {
     // error ya queda en el composable
     console.error(err)

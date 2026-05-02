@@ -46,7 +46,7 @@
           </div>
 
           <div class="option-item">
-            <button @click="rotatImage" class="btn btn-option">
+            <button @click="rotateImage" class="btn btn-option">
               🔄 ROTAR IMAGEN
             </button>
             <p class="option-description">Gira la imagen 90 grados</p>

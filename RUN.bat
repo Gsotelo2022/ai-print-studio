@@ -50,19 +50,13 @@ if %errorlevel%==0 (
 )
 
 REM ---------- SERVIDORES ----------
-echo [Iniciando Servidores] FastAPI, Node y PHP
+echo [Iniciando Servidores] FastAPI y Node
 
-REM FastAPI (con debug)
+REM FastAPI (backend principal)
 start "FastAPI Backend" cmd /k "cd backend\api_python && call .venv\Scripts\activate.bat && python -m uvicorn app_v2:app --reload --port 8000 || pause"
 
-REM Node Backend
+REM Node Backend (generación de imágenes)
 start "Node Backend" cmd /k "cd backend && node server.js"
-
-REM PHP Backend (opcional)
-php -v >nul 2>&1 
-if %errorlevel%==0 (
-    start "PHP Backend" cmd /k "cd backend && php -S localhost:8080"
-)
 
 REM Frontend Vue
 start "Vue Frontend" cmd /k "cd frontend && npm run dev"

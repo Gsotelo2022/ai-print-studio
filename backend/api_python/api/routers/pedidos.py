@@ -83,6 +83,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
                 "precio_unitario":float(precio),
                 "subtotal":       subtotal,
                 "archivo_diseno": item.get("archivo_diseno"),
+                "descripcion_estampado": item.get("descripcion_estampado", ""),
                 "posicion_x":     item.get("posicion_x", 0),
                 "posicion_y":     item.get("posicion_y", 0),
                 "zoom":           item.get("zoom", 1),
@@ -182,7 +183,8 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
         """, (
             numero_orden, user_id, subtotal_original, monto_descuento, total,
             payload.get("direccion_envio"), payload.get("ciudad"),
-            payload.get("telefono_contacto"), payload.get("notas_cliente"),
+            payload.get("telefono_contacto"),
+            payload.get("notas_cliente") or items_data[0].get("descripcion_estampado", ""),
         ))
 
         id_pedido = cur.fetchone()[0]

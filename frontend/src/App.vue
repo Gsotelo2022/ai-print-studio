@@ -145,24 +145,22 @@
         />
       </section>
 
-      <!-- PASO 3: VISTA PREVIA -->
-      <section v-if="userLogged && selectedProduct && !orderData && userType === 'cliente'" class="workflow-section">
-        <PreviewPanel
-          :imagen-url="generatedImage"
-          :producto="selectedProduct"
-          :prompt="lastPrompt"
-          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
-          @confirm-order="onConfirmOrder"
-          @go-back="onPreviewPanelGoBack"
+      <!-- MIS PEDIDOS -->
+      <section v-if="userLogged && showMyOrders && userType === 'cliente' && currentUser" class="workflow-section">
+        <MisPedidos
+          :user-id="currentUser.id_usuario || currentUser.user_id || currentUser.id"
+          @go-back="closeMyOrders"
         />
       </section>
 
-      <!-- PASO 4: CHECKOUT -->
-      <section v-if="userLogged && orderData && userType === 'cliente'" class="workflow-section">
-        <CheckoutPanel
-          :order="orderData"
+      <!-- PASO 4: RESUMEN Y ENVÍO -->
+      <section v-if="userLogged && selectedProduct && userType === 'cliente'" class="workflow-section">
+        <OrderSummary
           :imagen-url="generatedImage"
           :producto="selectedProduct"
+          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
+          @go-back="onOrderSummaryGoBack"
+          @order-completed="onOrderCompleted"
         />
       </section>
     </main>
@@ -186,11 +184,11 @@ import CreateUser from './components/CreateUser.vue'
 import Login from './components/Login.vue'
 import BackgroundRemover from './components/BackgroundRemover.vue'
 import ProductSelector from './components/ProductSelector.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
-import CheckoutPanel from './components/CheckoutPanel.vue'
+import OrderSummary from './components/OrderSummary.vue'
 import GenerateImage from './components/GenerateImage.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
 import MisDisenosGaleria from './components/MisDisenosGaleria.vue'
+import MisPedidos from './components/MisPedidos.vue'
 
 import { useApi } from './composables/useApi.js'
 
@@ -217,13 +215,13 @@ const showBackgroundRemover = ref(false)
 const uploadedImageMode = ref(false) 
 
 const selectedProduct = ref(null)
-const orderData = ref(null)
 
 // ============================
 // PRODUCTOS
 // ============================
 
-const productos = reactive({})
+//const productos = reactive({})
+const productos = ref([])
 const productosLoading = ref(false)
 const productosLoaded = ref(false)
 
@@ -247,7 +245,6 @@ function goToDashboard() {
   generatedImage.value = null
   showBackgroundRemover.value = false
   selectedProduct.value = null
-  orderData.value = null
 
   // 🔥 ESTO TE FALTABA
   showMyDesigns.value = false
@@ -278,6 +275,21 @@ function onLoginSuccess(data) {
   openHome()
 }
 
+function onUserCreated(data) {
+  showRegistrationForm.value = false
+  showLoginForm.value = true
+  console.log('✅ Usuario creado, mostrar login')
+}
+
+function handleGoToLogin() {
+  showRegistrationForm.value = false
+  showLoginForm.value = true
+}
+
+function handleForgotPassword() {
+  console.log('🔐 Recuperar contraseña - función no implementada aún')
+}
+
 function handleLogout() {
   localStorage.clear()
 
@@ -297,7 +309,6 @@ function openHome() {
   generatedImage.value = null
   showBackgroundRemover.value = false
   selectedProduct.value = null
-  orderData.value = null
   showRegistrationForm.value = false
   showLoginForm.value = false
   showMyDesigns.value = false
@@ -312,6 +323,48 @@ function openLogin() {
 function openRegister() {
   showRegistrationForm.value = true
   showLoginForm.value = false
+}
+
+function goToMyDesigns() {
+  showMyDesigns.value = true
+  showMyOrders.value = false
+  imageSourceMode.value = null
+  generatedImage.value = null
+  showBackgroundRemover.value = false
+  selectedProduct.value = null
+  console.log('📸 Abriendo Mis Diseños')
+}
+
+function closeMyDesigns() {
+  showMyDesigns.value = false
+  console.log('↩️ Cerrando Mis Diseños')
+}
+
+function goToMyOrders() {
+  showMyOrders.value = true
+  showMyDesigns.value = false
+  imageSourceMode.value = null
+  generatedImage.value = null
+  showBackgroundRemover.value = false
+  selectedProduct.value = null
+  console.log('📦 Abriendo Mis Pedidos')
+}
+
+function closeMyOrders() {
+  showMyOrders.value = false
+  console.log('↩️ Cerrando Mis Pedidos')
+}
+
+function onDesignSelected(diseno) {
+  generatedImage.value = diseno.ruta_archivo
+  showMyDesigns.value = false
+  showBackgroundRemover.value = false
+  
+  if (!productosLoaded.value) {
+    cargarProductosDelAgente()
+  }
+  
+  console.log('✅ Diseño seleccionado:', diseno)
 }
 
 // ============================
@@ -363,21 +416,28 @@ function onProductSelectorGoBack() {
   console.log('↩️ Volviendo desde ProductSelector')
 }
 
-function onConfirmOrder(order) {
-  orderData.value = order
+function onOrderSummaryGoBack() {
+  selectedProduct.value = null
+  console.log('↩️ Volviendo desde OrderSummary')
+}
+
+function onOrderCompleted(order) {
+  // Resetear flujo
+  selectedProduct.value = null
+  generatedImage.value = null
+  imageSourceMode.value = null
+  console.log('✅ Pedido completado:', order)
 }
 
 const cargarProductosDelAgente = async () => {
   productosLoading.value = true
   
   try {
-    const response = await fetch('http://localhost:8000/api/productos')
-    const data = await response.json()
-    
-    if (data.success && Array.isArray(data.data)) {
-      productos.value = data.data
+    const data = await api.get('/productos')
+    if (Array.isArray(data)) {
+      productos.value = data
       productosLoaded.value = true
-      console.log('✅ Productos cargados:', data.data.length)
+      console.log('✅ Productos cargados:', data.length)
     } else {
       console.warn('⚠️ Sin productos disponibles')
     }

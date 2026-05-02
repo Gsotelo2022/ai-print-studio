@@ -34,7 +34,7 @@ const users = ref([])
 
 async function loadUsers() {
   try {
-    users.value = await get('http://localhost:8000/api/users')
+    users.value = await get('/admin/clientes')
   } catch (err) {
     // error ya queda en el composable
     console.error(err)

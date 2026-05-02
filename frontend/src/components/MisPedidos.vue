@@ -63,7 +63,9 @@ const props = defineProps({
 const emit = defineEmits(['go-back']);
 
 const pedidos = ref([]);
-const { getMisPedidos, loading: cargando, error } = useApi();
+const cargando = ref(false);
+const error = ref(null);
+const api = useApi();
 
 // ✅ OBTENER userId DE LOCALSTORAGE SI NO VIENE EN PROPS
 const userId = computed(() => {
@@ -77,11 +79,16 @@ async function cargarPedidos() {
     console.error('No userId available');
     return;
   }
+  cargando.value = true;
+  error.value = null;
+  
   try {
-    pedidos.value = await getMisPedidos(userId.value);
+    pedidos.value = await api.getMisPedidos(userId.value);
   } catch (err) {
-    // el error ya queda en `error` del composable
+    error.value = err.message || 'Error al cargar pedidos';
     console.error('Error cargando pedidos:', err);
+  } finally {
+    cargando.value = false;
   }
 }
 
@@ -109,13 +116,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
+:root {
+  --color-primary: #06b6d4;
+  --color-primary-dark: #0b7285;
+  --color-surface: #0f1724;
+  --color-text: #e6eef8;
+  --color-text-secondary: #9aa6b2;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-bg: #071226;
+  --color-success: #27ae60;
+  --color-error: #ff6b6b;
+  --color-warning: #f39c12;
+}
+
 .mis-pedidos-container {
   max-width: 900px;
   margin: 2rem auto;
   padding: 2rem;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
 }
 
 .header {
@@ -123,13 +144,46 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 1rem;
 }
 
 .title {
   font-size: 2rem;
-  color: #333;
+  color: var(--color-primary);
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-primary);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
 }
 
 .pedidos-list {
@@ -139,43 +193,65 @@ onMounted(() => {
 }
 
 .pedido-card {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
   border-radius: 8px;
   overflow: hidden;
-  transition: box-shadow 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .pedido-card:hover {
-  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 12px rgba(6, 182, 212, 0.2);
+  transform: translateY(-2px);
 }
 
 .pedido-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #f7f7f7;
+  background: rgba(6, 182, 212, 0.05);
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .pedido-fecha {
-  color: #555;
+  color: var(--color-text-secondary);
 }
 
 .pedido-estado {
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
-  font-weight: bold;
-  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
   text-transform: capitalize;
 }
 
-.estado-pendiente { background-color: #f0ad4e; }
-.estado-en-proceso { background-color: #337ab7; }
-.estado-completado { background-color: #5cb85c; }
-.estado-enviado { background-color: #5bc0de; }
-.estado-cancelado { background-color: #d9534f; }
+.estado-pendiente {
+  background-color: var(--color-warning);
+  color: white;
+}
 
+.estado-en-proceso {
+  background-color: #3498db;
+  color: white;
+}
+
+.estado-completado {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.estado-enviado {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.estado-cancelado {
+  background-color: var(--color-error);
+  color: white;
+}
 
 .pedido-body {
   padding: 1rem;
@@ -186,14 +262,22 @@ onMounted(() => {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pedido-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .item-thumbnail {
   width: 80px;
   height: 80px;
   object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid #eee;
+  border-radius: 8px;
+  border: 2px solid var(--color-border);
 }
 
 .thumbnail-wrapper {
@@ -203,9 +287,9 @@ onMounted(() => {
 .thumbnail-placeholder {
   width: 80px;
   height: 80px;
-  border-radius: 4px;
-  border: 2px dashed #ddd;
-  background: #f5f5f5;
+  border-radius: 8px;
+  border: 2px dashed var(--color-border);
+  background: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,29 +299,87 @@ onMounted(() => {
 
 .item-info p {
   margin: 0;
+  color: var(--color-text);
 }
 
 .item-producto {
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .item-cantidad {
-  color: #777;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
 .pedido-total {
   text-align: right;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
+  font-weight: 700;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 2px solid var(--color-border);
+  color: var(--color-primary);
 }
 
-.loading-state, .error-state, .empty-state {
+.loading-state,
+.error-state,
+.empty-state {
   text-align: center;
   padding: 3rem;
-  border: 2px dashed #ddd;
+  border: 2px dashed var(--color-border);
   border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.error-state {
+  border-color: var(--color-error);
+  background: rgba(255, 107, 107, 0.05);
+}
+
+.error-state p {
+  color: var(--color-error);
+  margin-bottom: 1rem;
+}
+
+.error-state button {
+  padding: 0.75rem 1.5rem;
+  background: var(--color-error);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.error-state button:hover {
+  background: #e74c3c;
+  transform: translateY(-2px);
+}
+
+.empty-state p {
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .mis-pedidos-container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pedido-item {
+    flex-direction: column;
+    text-align: center;
+  }
 }
 </style>

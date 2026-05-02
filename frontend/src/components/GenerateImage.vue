@@ -55,10 +55,11 @@ async function generate() {
   error.value = ''
 
   try {
-    // ✅ USAR ENDPOINT DE USEAPI (FASTAPI, NO PHP LOCALHOST:3000)
     const result = await generateImage(prompt.value)
     
-    if (result?.imagen) {
+    if (result?.imagen_url) {
+      image.value = result.imagen_url
+    } else if (result?.imagen) {
       image.value = result.imagen
     } else {
       error.value = result?.error || 'Error al generar imagen'

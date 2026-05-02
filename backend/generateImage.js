@@ -7,7 +7,7 @@ const replicate = new Replicate({
 });
 
 // 📁 Ruta donde se guardan las imágenes
-const carpetaImagenes = path.join(__dirname, "api", "imagenes-generadas-con-IA");
+const carpetaImagenes = path.join(__dirname, "uploads", "imagenes");
 
 // Crear carpeta si no existe
 if (!fs.existsSync(carpetaImagenes)) {

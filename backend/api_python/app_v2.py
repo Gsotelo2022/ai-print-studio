@@ -1,11 +1,5 @@
-"""
-AI Print Studio — FastAPI v2 (orquestrador delgado)
-====================================================
-Este archivo sólo configura la app, el middleware y registra los routers.
-Toda la lógica de negocio está en api/routers/*.py
-"""
-
 import os
+import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -14,10 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-# Cargar variables de entorno desde .env (si existe)
 load_dotenv()
 
-# ── Routers ─────────────────────────────────────────────────
+# Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Routers
 from api.routers.auth      import router as auth_router
 from api.routers.productos import router as productos_router
 from api.routers.cupones   import router as cupones_router
@@ -25,19 +22,16 @@ from api.routers.pedidos   import router as pedidos_router
 from api.routers.disenos   import router as disenos_router
 from api.routers.admin     import router as admin_router
 
-# ============================================================
-# APP
-# ============================================================
-
 app = FastAPI(
     title="AI Print Studio API",
     version="2.1.0",
-    description="Backend principal de AI Print Studio",
 )
 
-# ── CORS ─────────────────────────────────────────────────────
+# CORS
 _raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
 ALLOWED_ORIGINS = [o.strip() for o in _raw.split(",") if o.strip()]
+
+print("ALLOWED_ORIGINS:", ALLOWED_ORIGINS)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,15 +41,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Archivos estáticos (imágenes IA) ─────────────────────────
-BASE_DIR        = Path(__file__).resolve().parent.parent
+# Static files
+BASE_DIR = Path(__file__).resolve().parent.parent
 IMAGENES_IA_DIR = BASE_DIR / "api" / "imagenes-generadas-con-IA"
 IMAGENES_IA_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/imagenes", StaticFiles(directory=str(IMAGENES_IA_DIR)), name="imagenes")
 
-# ── Manejador de errores HTTP ─────────────────────────────────
-
+# HTTP Errors
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     if isinstance(exc.detail, dict):
@@ -65,14 +58,26 @@ async def http_exception_handler(request, exc):
         content={"success": False, "error": str(exc.detail)},
     )
 
-# ── Health check ─────────────────────────────────────────────
+# 🔥 Global Errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error("ERROR NO CONTROLADO", exc_info=True)
 
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Error interno del servidor",
+            "detail": str(exc)
+        },
+    )
+
+# Health
 @app.get("/api/health", tags=["util"])
 def health():
     return {"success": True, "status": "ok", "version": "2.1.0"}
 
-# ── Registrar routers ────────────────────────────────────────
-
+# Routers
 app.include_router(auth_router)
 app.include_router(productos_router)
 app.include_router(cupones_router)

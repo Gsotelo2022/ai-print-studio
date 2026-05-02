@@ -56,7 +56,7 @@ def crear_clientes_ejemplo():
     
     for cliente in clientes_ejemplo:
         # Verificar si ya existe
-        cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email = ?", (cliente["email"],))
+        cur.execute("SELECT COUNT(*) FROM Usuarios WHERE Email = %s", (cliente["email"],))
         count = cur.fetchone()[0]
         
         if count > 0:
@@ -70,7 +70,7 @@ def crear_clientes_ejemplo():
         # Insertar cliente
         cur.execute("""
             INSERT INTO Usuarios (Nombre, Email, telefono, password_user, Tipo)
-            VALUES (?, ?, ?, ?, 'cliente')
+            VALUES (%s, ?, ?, ?, 'cliente')
         """, (cliente["nombre"], cliente["email"], cliente["telefono"], hashed_password))
         
         conn.commit()

@@ -113,8 +113,8 @@ def get_mis_disenos(id_usuario: int, user: dict = Depends(get_current_user)):
                    COUNT(DISTINCT pi.id_pedido) as veces_usado,
                    MAX(p.fecha_pedido) as ultimo_uso
             FROM archivos_diseno ad
-            LEFT JOIN Pedidos_Items pi ON ad.id_archivo = pi.archivo_diseno
-            LEFT JOIN Pedidos p ON pi.id_pedido = p.id_pedido
+            LEFT JOIN pedidos_items pi ON ad.id_archivo = pi.archivo_diseno
+            LEFT JOIN pedidos p ON pi.id_pedido = p.id_pedido
             WHERE ad.id_usuario = %s
             GROUP BY ad.id_archivo, ad.nombre_original, ad.nombre_almacenado,
                      ad.ruta_archivo, ad.ruta_thumbnail, ad.tipo_mime, ad.tamano_bytes,

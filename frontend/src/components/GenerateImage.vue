@@ -9,9 +9,13 @@
       v-model="prompt"
     ></textarea>
 
-    <button @click="generate" :disabled="loading" class="btn btn-primary">
+    <button @click="generate" :disabled="loading || !prompt.trim()" class="btn btn-primary">
       {{ loading ? 'Generando...' : 'Generar' }}
     </button>
+    
+    <div v-if="error" class="error-message">
+      ⚠️ {{ error }}
+    </div>
     
     <div v-if="image" class="preview">
       <img :src="image" />
@@ -32,41 +36,40 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useApi } from '../composables/useApi'
 
 const emit = defineEmits(['image-generated', 'go-back'])
 
 const prompt = ref('')
 const image = ref(null)
 const loading = ref(false)
+const error = ref('')
+const { generateImage } = useApi()
+
+const userId = parseInt(localStorage.getItem('userId') || '0')
 
 async function generate() {
-
   if (!prompt.value) return
 
   loading.value = true
+  error.value = ''
 
   try {
+    // ✅ USAR ENDPOINT DE USEAPI (FASTAPI, NO PHP LOCALHOST:3000)
+    const result = await generateImage(prompt.value)
+    
+    if (result?.imagen) {
+      image.value = result.imagen
+    } else {
+      error.value = result?.error || 'Error al generar imagen'
+    }
 
-    const res = await fetch('http://localhost:3000/generar-imagen', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt: prompt.value
-      })
-    })
-
-    const data = await res.json()
-
-    image.value = data.imagen
-
-  } catch (error) {
-    console.error(error)
-    alert('Error generando imagen')
+  } catch (err) {
+    console.error(err)
+    error.value = err.message || 'Error generando imagen'
+  } finally {
+    loading.value = false
   }
-
-  loading.value = false
 }
 
 function usarImagen() {
@@ -112,6 +115,16 @@ textarea {
   background-color: var(--color-surface);
   color: var(--color-text);
   border: 2px solid rgba(255, 255, 255, 0.06);
+}
+
+.error-message {
+  padding: 10px;
+  background-color: #fee;
+  border: 2px solid #fcc;
+  border-radius: 8px;
+  color: #c33;
+  font-size: 13px;
+  margin: 10px 0;
 }
 
 button {

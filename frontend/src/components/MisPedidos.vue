@@ -28,7 +28,12 @@
         <div class="pedido-body">
           <div class="pedido-items">
             <div v-for="item in pedido.items" :key="item.id_item" class="pedido-item">
-              <img :src="item.ruta_thumbnail" alt="thumbnail" class="item-thumbnail" @error="onImageError"/>
+              <div v-if="item.ruta_thumbnail" class="thumbnail-wrapper">
+                <img :src="item.ruta_thumbnail" alt="thumbnail" class="item-thumbnail" @error="onImageError"/>
+              </div>
+              <div v-else class="thumbnail-placeholder">
+                <span>📷</span>
+              </div>
               <div class="item-info">
                 <p class="item-producto">{{ item.nombre_producto }} ({{ item.variante_info }})</p>
                 <p class="item-cantidad">Cantidad: {{ item.cantidad }}</p>
@@ -45,13 +50,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useApi } from '../composables/useApi.js';
 
 const props = defineProps({
   userId: {
     type: Number,
-    required: true
+    required: false
   }
 });
 
@@ -60,13 +65,23 @@ const emit = defineEmits(['go-back']);
 const pedidos = ref([]);
 const { getMisPedidos, loading: cargando, error } = useApi();
 
+// ✅ OBTENER userId DE LOCALSTORAGE SI NO VIENE EN PROPS
+const userId = computed(() => {
+  if (props.userId) return props.userId;
+  const stored = localStorage.getItem('userId');
+  return stored ? parseInt(stored) : null;
+});
 
 async function cargarPedidos() {
-  if (!props.userId) return;
+  if (!userId.value) {
+    console.error('No userId available');
+    return;
+  }
   try {
-    pedidos.value = await getMisPedidos(props.userId);
+    pedidos.value = await getMisPedidos(userId.value);
   } catch (err) {
     // el error ya queda en `error` del composable
+    console.error('Error cargando pedidos:', err);
   }
 }
 
@@ -179,6 +194,23 @@ onMounted(() => {
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid #eee;
+}
+
+.thumbnail-wrapper {
+  flex-shrink: 0;
+}
+
+.thumbnail-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  border: 2px dashed #ddd;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
 }
 
 .item-info p {

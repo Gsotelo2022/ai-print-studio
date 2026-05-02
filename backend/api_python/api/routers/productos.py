@@ -21,8 +21,8 @@ def get_productos():
         cur.execute("""
             SELECT id_producto, nombre, descripcion, categoria, imagen_mockup,
                    area_impresion_ancho, area_impresion_alto
-            FROM Productos
-            WHERE activo = TRUE
+            FROM productos
+            WHERE activo = true
             ORDER BY orden_visualizacion, nombre
         """)
 
@@ -32,8 +32,8 @@ def get_productos():
 
             cur.execute("""
                 SELECT pv.id_variante, pv.sku, pv.precio, pv.stock_actual
-                FROM Producto_Variantes pv
-                WHERE pv.id_producto = %s AND pv.activo = TRUE
+                FROM producto_variantes pv
+                WHERE pv.id_producto = %s AND pv.activo = true
                 ORDER BY pv.precio
             """, (id_prod,))
 
@@ -43,9 +43,9 @@ def get_productos():
 
                 cur.execute("""
                     SELECT pa.nombre, pav.valor
-                    FROM Variante_Atributos va
-                    INNER JOIN Producto_Atributo_Valores pav ON va.id_valor = pav.id_valor
-                    INNER JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
+                    FROM variante_atributos va
+                    INNER JOIN producto_atributo_valores pav ON va.id_valor = pav.id_valor
+                    INNER JOIN producto_atributos pa ON pav.id_atributo = pa.id_atributo
                     WHERE va.id_variante = %s
                 """, (id_var,))
 
@@ -95,9 +95,9 @@ def get_variante_detalle(id_variante: int):
         cur.execute("""
             SELECT pv.id_variante, pv.sku, pv.precio, pv.stock_actual,
                    p.nombre AS producto_nombre, p.descripcion, p.imagen_mockup
-            FROM Producto_Variantes pv
-            INNER JOIN Productos p ON pv.id_producto = p.id_producto
-            WHERE pv.id_variante = %s AND pv.activo = TRUE
+            FROM producto_variantes pv
+            INNER JOIN productos p ON pv.id_producto = p.id_producto
+            WHERE pv.id_variante = %s AND pv.activo = true
         """, (id_variante,))
 
         row = cur.fetchone()
@@ -108,9 +108,9 @@ def get_variante_detalle(id_variante: int):
 
         cur.execute("""
             SELECT pa.nombre, pav.valor
-            FROM Variante_Atributos va
-            INNER JOIN Producto_Atributo_Valores pav ON va.id_valor = pav.id_valor
-            INNER JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
+            FROM variante_atributos va
+            INNER JOIN producto_atributo_valores pav ON va.id_valor = pav.id_valor
+            INNER JOIN producto_atributos pa ON pav.id_atributo = pa.id_atributo
             WHERE va.id_variante = %s
         """, (id_var,))
 

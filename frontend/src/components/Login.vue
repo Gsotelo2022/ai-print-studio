@@ -7,6 +7,10 @@
       </div>
 
       <form @submit.prevent="handleSubmit" class="login-form">
+        <div v-if="error" class="error-message">
+          ⚠️ {{ error }}
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="email" class="form-label">Email</label>
@@ -80,8 +84,12 @@ const form = ref({
 })
 
 const loading = ref(false)
+const error = ref(null)
 
 async function handleSubmit() {
+  loading.value = true
+  error.value = null
+  
   try {
     const payload = {
       email: form.value.email,
@@ -92,10 +100,24 @@ async function handleSubmit() {
 
     console.log("RESPUESTA LOGIN:", user)
 
-    emit('login-success', user)
+    if (user?.token) {
+      // ✅ GUARDAR JWT Y DATOS DE USUARIO EN LOCALSTORAGE
+      localStorage.setItem('token', user.token)
+      localStorage.setItem('userId', user.id || user.id_usuario || '')
+      localStorage.setItem('userName', user.nombre || user.name || user.email)
+      localStorage.setItem('userType', user.tipo || user.userType || 'cliente')
+      
+      // Emitir éxito con datos del usuario
+      emit('login-success', user)
+    } else {
+      error.value = 'Error: No se recibió token de autenticación'
+    }
 
   } catch (err) {
     console.error(err)
+    error.value = err.message || 'Error al iniciar sesión'
+  } finally {
+    loading.value = false
   }
 }
 function onForgot() {
@@ -157,6 +179,16 @@ function onForgot() {
   flex-direction: column;
   gap: 9px;
   margin-bottom: 12px;
+}
+
+.error-message {
+  padding: 10px;
+  background-color: #fee;
+  border: 2px solid #fcc;
+  border-radius: 8px;
+  color: #c33;
+  font-size: 13px;
+  margin-bottom: 8px;
 }
 
 .form-row {

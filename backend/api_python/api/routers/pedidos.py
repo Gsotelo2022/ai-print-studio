@@ -41,7 +41,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id es obligatorio")
 
-        cur.execute("SELECT COUNT(*) FROM Usuarios WHERE id_usuario = %s", (user_id,))
+        cur.execute("SELECT COUNT(*) FROM usuarios WHERE id_usuario = %s", (user_id,))
         if cur.fetchone()[0] == 0:
             raise HTTPException(status_code=404, detail="Usuario no existe")
 
@@ -61,9 +61,9 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
 
             cur.execute("""
                 SELECT pv.precio, pv.stock_actual, p.nombre
-                FROM Producto_Variantes pv
-                INNER JOIN Productos p ON pv.id_producto = p.id_producto
-                WHERE pv.id_variante = %s AND pv.activo = TRUE
+                FROM producto_variantes pv
+                INNER JOIN productos p ON pv.id_producto = p.id_producto
+                WHERE pv.id_variante = %s AND pv.activo = true
             """, (id_variante,))
 
             row = cur.fetchone()
@@ -98,7 +98,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
             cur.execute("""
                 SELECT id_cupon, descuento_porcentaje, usos_maximos, usos_actuales,
                        fecha_expiracion, activo
-                FROM Cupones WHERE codigo = %s AND activo = TRUE
+                FROM cupones WHERE codigo = %s AND activo = true
             """, (codigo_cupon,))
 
             cupon = cur.fetchone()
@@ -116,7 +116,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
             monto_descuento = (float(total) * float(porcentaje)) / 100
             total           = float(total) - monto_descuento
 
-            cur.execute("UPDATE Cupones SET usos_actuales = usos_actuales + 1 WHERE id_cupon = %s", (id_cupon,))
+            cur.execute("UPDATE cupones SET usos_actuales = usos_actuales + 1 WHERE id_cupon = %s", (id_cupon,))
 
         # ── GUARDAR ARCHIVOS DE DISEÑO ─────────────────────────
         for item in items_data:
@@ -146,7 +146,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
                     es_ia     = 0 if prompt.lower() == "imagen subida por usuario" else 1
 
                     cur.execute("""
-                        INSERT INTO Archivos_Diseno (
+                        INSERT INTO archivos_diseno (
                             id_usuario, nombre_original, nombre_almacenado, ruta_archivo,
                             ruta_thumbnail, tipo_mime, tamano_bytes, ancho_px, alto_px,
                             hash_md5, es_generado_ia, prompt_usado, fecha_subida
@@ -168,12 +168,12 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
                 item["id_archivo"] = None
 
         # ── INSERTAR PEDIDO ────────────────────────────────────
-        cur.execute("SELECT COALESCE(MAX(id_pedido), 0) FROM Pedidos")
+        cur.execute("SELECT COALESCE(MAX(id_pedido), 0) FROM pedidos")
         last_id      = cur.fetchone()[0]
         numero_orden = f"ORD-{datetime.now().year}-{str(last_id + 1).zfill(5)}"
 
         cur.execute("""
-            INSERT INTO Pedidos (
+            INSERT INTO pedidos (
                 numero_orden, id_usuario, subtotal, descuento, total,
                 direccion_envio, ciudad, telefono_contacto, notas_cliente
             )
@@ -189,7 +189,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
 
         for item in items_data:
             cur.execute("""
-                INSERT INTO Pedidos_Items (
+                INSERT INTO pedidos_items (
                     id_pedido, id_variante, cantidad, precio_unitario,
                     archivo_diseno, diseno_posicion_x, diseno_posicion_y, diseno_zoom,
                     tiene_diseno
@@ -236,14 +236,14 @@ def get_mis_pedidos(id_usuario: int, user: dict = Depends(get_current_user)):
         conn = get_connection()
         cur = conn.cursor()
 
-        cur.execute("SELECT COUNT(*) FROM Usuarios WHERE id_usuario = %s", (id_usuario,))
+        cur.execute("SELECT COUNT(*) FROM usuarios WHERE id_usuario = %s", (id_usuario,))
         if cur.fetchone()[0] == 0:
             raise HTTPException(status_code=404, detail={"success": False, "error": "Usuario no encontrado"})
 
         cur.execute("""
             SELECT p.id_pedido, p.numero_orden, p.fecha_pedido,
                    p.estado, p.estado_pago, p.total, p.direccion_envio, p.ciudad
-            FROM Pedidos p
+            FROM pedidos p
             WHERE p.id_usuario = %s
             ORDER BY p.fecha_pedido DESC
         """, (id_usuario,))
@@ -259,13 +259,13 @@ def get_mis_pedidos(id_usuario: int, user: dict = Depends(get_current_user)):
                        MAX(CASE WHEN pa.nombre='Color' THEN pav.valor END) AS color,
                        MAX(CASE WHEN pa.nombre='Talle' THEN pav.valor END) AS talle,
                        ad.ruta_thumbnail
-                FROM Pedidos_Items pi
-                INNER JOIN Producto_Variantes pv ON pi.id_variante = pv.id_variante
-                INNER JOIN Productos prod ON pv.id_producto = prod.id_producto
-                LEFT JOIN Variante_Atributos va ON pv.id_variante = va.id_variante
-                LEFT JOIN Producto_Atributo_Valores pav ON va.id_valor = pav.id_valor
-                LEFT JOIN Producto_Atributos pa ON pav.id_atributo = pa.id_atributo
-                LEFT JOIN Archivos_Diseno ad ON pi.id_diseno = ad.id_diseno
+                FROM pedidos_items pi
+                INNER JOIN producto_variantes pv ON pi.id_variante = pv.id_variante
+                INNER JOIN productos prod ON pv.id_producto = prod.id_producto
+                LEFT JOIN variante_atributos va ON pv.id_variante = va.id_variante
+                LEFT JOIN producto_atributo_valores pav ON va.id_valor = pav.id_valor
+                LEFT JOIN producto_atributos pa ON pav.id_atributo = pa.id_atributo
+                LEFT JOIN archivos_diseno ad ON pi.archivo_diseno = ad.id_archivo
                 WHERE pi.id_pedido = %s
                 GROUP BY pi.cantidad, pi.precio_unitario, prod.nombre, ad.ruta_thumbnail
             """, (id_pedido,))
@@ -364,7 +364,7 @@ def save_payment(payload: dict):
             conn = get_connection()
             cur  = conn.cursor()
             cur.execute("""
-                UPDATE Pedidos
+                UPDATE pedidos
                 SET estado_pago = 'pagado', referencia_externa = %s
                 WHERE referencia_externa = %s OR referencia_externa IS NULL
             """, (str(payment_id), str(payment_id)))

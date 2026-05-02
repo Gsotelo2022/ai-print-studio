@@ -1,4 +1,5 @@
-import pyodbc
+import psycopg2
+import os
 import hashlib
 import secrets
 
@@ -8,11 +9,14 @@ def hash_password(pw: str) -> str:
     hash_obj = hashlib.pbkdf2_hmac('sha256', pw.encode(), bytes.fromhex(salt), 100000)
     return f"{salt}${hash_obj.hex()}"
 
-conn = pyodbc.connect(
-    'DRIVER={SQL Server};'
-    'SERVER=localhost\SQLEXPRESS01;'
-    'DATABASE=PrendeteRock;'
-    'Trusted_Connection=yes;'
+conn = psycopg2.connect(
+    host=os.getenv("PG_HOST", "127.0.0.1"),
+    port=int(os.getenv("PG_PORT", "5432")),
+    dbname=os.getenv("PG_DB", "PrendeteRock"),
+    user=os.getenv("PG_USER", "postgres"),
+    password=os.getenv("PG_PASSWORD", ""),
+    connect_timeout=5,
+    sslmode="disable"
 )
 
 cur = conn.cursor()
@@ -42,7 +46,7 @@ else:
     
     cur.execute("""
         INSERT INTO Usuarios (Email, password_user, Nombre, Tipo)
-        VALUES (?, ?, ?, 'admin')
+        VALUES (%s, ?, ?, 'admin')
     """, (admin_email, password_hash, admin_nombre))
     
     conn.commit()

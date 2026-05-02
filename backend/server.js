@@ -32,7 +32,8 @@ app.post('/generar-imagen', async (req, res) => {
 
 
 // 👇 AGREGAR ESTO
-app.use('/api/imagenes-generadas-con-IA', express.static(path.join(__dirname, 'api/imagenes-generadas-con-IA')));
+// 👇 SERVIR IMÁGENES GENERADAS
+app.use('/api/imagenes-generadas-con-IA', express.static(path.join(__dirname, './uploads/imagenes')));
 
 app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000')

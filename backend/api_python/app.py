@@ -1,3 +1,7 @@
+raise RuntimeError(
+    "app.py está DEPRECADO (era la versión SQL Server con '?'). "
+    "Usar: uvicorn app_v2:app --host 0.0.0.0 --port 8000 --reload"
+)
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

@@ -97,6 +97,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useApi } from '../composables/useApi.js'
 
 // Props
 const props = defineProps({
@@ -113,7 +114,12 @@ const modalVisible = ref(false)
 const cuponAplicadoId = ref(null)
 const error = ref(null)
 
-// Funciones
+// API
+const { get } = useApi()
+
+// -----------------------------
+// UI
+// -----------------------------
 function toggleModal() {
   modalVisible.value = !modalVisible.value
 }
@@ -132,57 +138,76 @@ function aplicarCupon(cupon) {
 function removerCupon() {
   cuponAplicadoId.value = null
   emit('cupon-removido')
-  console.log('🗑️ Cupón removido')
+  console.log('🗑 Cupón removido')
   closeModal()
 }
 
 function formatearFecha(fecha) {
   if (!fecha) return 'N/A'
   const date = new Date(fecha)
-  return date.toLocaleDateString('es-ES', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
+  return date.toLocaleDateString('es-AR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
   })
 }
 
+// -----------------------------
+// 📦 API - CUPONES
+// -----------------------------
 async function cargarCupones() {
+  if (!props.userId) return
+
   cargando.value = true
   error.value = null
-  
+
   try {
     console.log(`🔄 Cargando cupones para usuario ${props.userId}...`)
-    
-    const response = await fetch(`http://localhost:8000/api/cupones/disponibles/${props.userId}`)
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+
+    // ✅ IMPORTANTE: SIN /api (useApi ya lo agrega)
+    const response = await get(`/cupones/disponibles/${props.userId}`)
+
+    if (!response) {
+      throw new Error('Respuesta vacía del backend')
     }
-    
-    const result = await response.json()
-    
-    if (result.success && result.data) {
-      cuponesDisponibles.value = result.data.cupones || []
-      console.log(`✅ ${cuponesDisponibles.value.length} cupones cargados`)
-    } else {
-      console.warn('⚠️ Respuesta sin cupones:', result)
-      cuponesDisponibles.value = []
+
+    /**
+     * SOPORTA:
+     * - []
+     * - { cupones: [] }
+     * - { data: { cupones: [] } }
+     */
+    let cupones = []
+
+    if (Array.isArray(response)) {
+      cupones = response
+    } else if (Array.isArray(response.cupones)) {
+      cupones = response.cupones
+    } else if (Array.isArray(response.data?.cupones)) {
+      cupones = response.data.cupones
     }
+
+    cuponesDisponibles.value = cupones
+
+    console.log(`✅ ${cupones.length} cupones cargados`)
+
   } catch (err) {
     console.error('❌ Error cargando cupones:', err)
-    error.value = err.message
+
+    error.value = err.message || 'Error al cargar cupones'
     cuponesDisponibles.value = []
+
   } finally {
     cargando.value = false
   }
 }
 
-// Cargar cupones al montar componente
+// Init
 onMounted(() => {
   cargarCupones()
 })
 
-// Exponer método para recargar cupones (opcional)
+// Expose opcional
 defineExpose({
   recargarCupones: cargarCupones
 })

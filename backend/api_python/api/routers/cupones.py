@@ -30,7 +30,7 @@ def obtener_cupones_disponibles_cliente(
             SELECT id_cupon, codigo, descripcion, descuento_porcentaje,
                    fecha_expiracion, usos_actuales, usos_maximos
             FROM cupones
-            WHERE activo = TRUE
+            WHERE activo = true
               AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
               AND (usos_maximos IS NULL OR usos_actuales < usos_maximos)
             ORDER BY descuento_porcentaje DESC
@@ -50,7 +50,7 @@ def obtener_cupones_disponibles_cliente(
             SELECT COUNT(*) as total_pedidos,
                    MAX(fecha_pedido) as ultima_compra,
                    SUM(total) as gasto_total
-            FROM Pedidos
+            FROM pedidos
             WHERE id_usuario = %s AND estado != 'cancelado'
         """, (id_cliente,))
 

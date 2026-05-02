@@ -91,9 +91,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useApi } from '../composables/useApi.js'
-
-const { get, put, post, del } = useApi()
 
 /* =========================
    STATE
@@ -125,25 +122,25 @@ async function cargarProductos() {
   error.value = null
 
   try {
-    const data = await get('/admin/productos')
+    const res = await fetch('http://127.0.0.1:5001/productos-ia')
+
+    if (!res.ok) throw new Error('Error HTTP')
+
+    const data = await res.json()
 
     if (!Array.isArray(data)) {
       throw new Error('Formato inválido')
     }
 
-    // El endpoint admin devuelve productos sin precio_desde;
-    // usamos precio_desde del endpoint público si está disponible,
-    // sino mostramos 0 hasta que se agreguen variantes.
-    productos.value = data.map((p) => ({
-      id_producto: p.id_producto,
-      nombre: p.nombre || 'Sin nombre',
-      descripcion: p.descripcion,
-      precio: Number(p.precio_desde) || 0,
+    productos.value = data.map((p, i) => ({
+      id_producto: p.id || i,
+      nombre: p.producto || 'Sin nombre',
+      precio: Number(p.precio) || 0
     }))
 
   } catch (e) {
     console.error(e)
-    error.value = e.message || 'Error cargando productos'
+    error.value = 'Error cargando productos'
   } finally {
     cargando.value = false
   }
@@ -182,11 +179,22 @@ async function confirmarEdicion(producto) {
   }
 
   try {
-    await put(`/admin/productos/${producto.id_producto}/precio`, { precio: nuevo })
+    const res = await fetch(
+      `http://localhost:8000/api/admin/productos/${producto.id_producto}/precio`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ precio: nuevo })
+      }
+    )
+
+    if (!res.ok) throw new Error()
+
     producto.precio = nuevo
     cancelarEdicion()
-  } catch (e) {
-    alert('Error actualizando precio: ' + (e.message || ''))
+
+  } catch {
+    alert('Error actualizando precio')
   }
 }
 
@@ -197,12 +205,19 @@ async function eliminarProducto(producto) {
   if (!confirm(`Eliminar "${producto.nombre}"?`)) return
 
   try {
-    await del(`/admin/productos/${producto.id_producto}`)
+    const res = await fetch(
+      `http://localhost:8000/api/admin/productos/${producto.id_producto}`,
+      { method: 'DELETE' }
+    )
+
+    if (!res.ok) throw new Error()
+
     productos.value = productos.value.filter(
       p => p.id_producto !== producto.id_producto
     )
-  } catch (e) {
-    alert('Error eliminando: ' + (e.message || ''))
+
+  } catch {
+    alert('Error eliminando')
   }
 }
 
@@ -240,12 +255,21 @@ async function crearProducto() {
       formData.append('imagen', archivoSeleccionado.value)
     }
 
-    await post('/admin/productos', formData, true)
+    const res = await fetch(
+      'http://localhost:8000/api/admin/productos',
+      {
+        method: 'POST',
+        body: formData
+      }
+    )
+
+    if (!res.ok) throw new Error()
+
     cerrarModalNuevo()
     cargarProductos()
 
-  } catch (e) {
-    alert('Error creando producto: ' + (e.message || ''))
+  } catch {
+    alert('Error creando producto')
   }
 }
 
@@ -271,63 +295,17 @@ function formatearMoneda(valor) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-}
-
-.view-header h1 {
-  margin: 0;
-  font-size: 1.4rem;
-  color: var(--color-text);
-}
-
-.view-header p {
-  margin: 4px 0 0;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-}
-
-.btn {
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius, 8px);
-  padding: 8px 16px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.btn:hover {
-  opacity: 0.85;
+  margin-bottom: 15px;
 }
 
 /* BUSCADOR */
 .search-container {
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  margin-bottom: 15px;
 }
 
 .search-container input {
-  padding: 8px 12px;
-  width: 260px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius, 8px);
-  color: var(--color-text);
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.search-container input:focus {
-  border-color: var(--color-primary);
-}
-
-.search-container span {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
+  padding: 8px;
+  width: 250px;
 }
 
 /* GRID */
@@ -339,157 +317,55 @@ function formatearMoneda(valor) {
 
 /* CARD */
 .card {
-  background: var(--color-surface);
-  padding: 16px;
-  border-radius: var(--radius, 8px);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
-.card h3 {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  color: var(--color-text);
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 /* PRECIO */
 .precio {
-  font-weight: 600;
-  color: var(--color-primary);
-  margin: 8px 0;
-  font-size: 1rem;
-}
-
-/* EDICIÓN INLINE */
-.card input[type="number"] {
-  width: 100%;
-  padding: 6px 10px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius, 8px);
-  color: var(--color-text);
-  font-size: 0.85rem;
-  margin-bottom: 8px;
+  font-weight: bold;
+  margin: 10px 0;
 }
 
 /* BOTONES */
 .acciones {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
 }
 
-.acciones button {
-  flex: 1;
-  padding: 5px 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius, 8px);
-  background: var(--color-bg);
-  color: var(--color-text);
+button {
   cursor: pointer;
-  font-size: 0.8rem;
-  transition: all 0.2s;
 }
 
-.acciones button:hover {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.acciones button.danger:hover {
-  background: #ef4444;
-  border-color: #ef4444;
-  color: white;
+button.danger {
+  color: red;
 }
 
 /* ESTADOS */
 .estado {
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--color-text-secondary);
+  padding: 20px;
 }
 
 .estado.error {
-  color: #ef4444;
-}
-
-.estado button {
-  margin-top: 10px;
-  padding: 6px 14px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: var(--radius, 8px);
-  cursor: pointer;
+  color: red;
 }
 
 /* MODAL */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
 }
 
 .modal-box {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius, 8px);
-  padding: 28px;
-  width: 380px;
-  max-width: 90vw;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-}
-
-.modal-box h2 {
-  margin: 0 0 20px;
-  font-size: 1.1rem;
-  color: var(--color-text);
-}
-
-.modal-box input[type="text"],
-.modal-box input[type="file"] {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius, 8px);
-  color: var(--color-text);
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.modal-box input[type="text"]:focus {
-  border-color: var(--color-primary);
-}
-
-.modal-box input[type="file"] {
-  padding: 6px;
-  cursor: pointer;
-}
-
-.modal-box .acciones {
-  margin-top: 20px;
-  justify-content: flex-end;
-}
-
-.modal-box .acciones button {
-  flex: none;
-  padding: 7px 18px;
-  font-size: 0.85rem;
-}
-
-.modal-box .acciones button:first-child {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 300px;
 }
 </style>

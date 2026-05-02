@@ -93,9 +93,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import EditClienteModal from './EditClienteModal.vue'
-import { useApi } from '../composables/useApi.js'
-
-const { get, put } = useApi()
 
 const clientes = ref([])
 const cargando = ref(false)
@@ -129,23 +126,41 @@ const guardarCambiosCliente = async (clienteEditado) => {
   console.log('Guardando cambios para:', clienteEditado)
   
   try {
+    // Enviar solo los campos requeridos por el backend
     const datosActualizacion = {
       nombre: clienteEditado.nombre,
       email: clienteEditado.email,
       telefono: clienteEditado.telefono || null,
       tipo: clienteEditado.tipo,
       cuenta_bloqueada: clienteEditado.cuenta_bloqueada
+    };
+
+    const response = await fetch(`http://localhost:8000/api/admin/clientes/${clienteEditado.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(datosActualizacion),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al actualizar el cliente');
     }
 
-    await put(`/admin/clientes/${clienteEditado.id}`, datosActualizacion)
+    const data = await response.json();
 
-    await cargarClientes()
-    console.log('✅ Cliente actualizado con éxito')
-    alert('Cliente actualizado correctamente')
-
+    if (data.success) {
+      // Actualizar la lista de clientes
+      await cargarClientes()
+      console.log('✅ Cliente actualizado con éxito')
+      alert('Cliente actualizado correctamente');
+    } else {
+      throw new Error(data.error || 'Error desconocido al actualizar');
+    }
   } catch (err) {
     console.error('❌ Error al guardar cambios:', err)
-    alert('Error al actualizar el cliente: ' + err.message)
+    alert('Error al actualizar el cliente: ' + err.message);
   }
 
   cerrarModalEdicion()
@@ -162,8 +177,19 @@ async function cargarClientes() {
   
   try {
     console.log('🔄 Cargando clientes desde la base de datos...')
-    const data = await get('/admin/clientes')
-    clientes.value = Array.isArray(data) ? data : (data?.clientes || [])
+    const response = await fetch('http://localhost:8000/api/admin/clientes')
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Error al cargar clientes')
+    }
+    
+    clientes.value = data.data
     console.log('✅ Clientes cargados:', clientes.value.length)
     
   } catch (err) {

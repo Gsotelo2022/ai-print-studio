@@ -223,8 +223,7 @@ const orderData = ref(null)
 // PRODUCTOS
 // ============================
 
-//const productos = reactive({})
-const productos = ref([])
+const productos = reactive({})
 const productosLoading = ref(false)
 const productosLoaded = ref(false)
 
@@ -372,11 +371,13 @@ const cargarProductosDelAgente = async () => {
   productosLoading.value = true
   
   try {
-    const data = await api.get('/productos')
-    if (Array.isArray(data)) {
-      productos.value = data
+    const response = await fetch('http://localhost:8000/api/productos')
+    const data = await response.json()
+    
+    if (data.success && Array.isArray(data.data)) {
+      productos.value = data.data
       productosLoaded.value = true
-      console.log('✅ Productos cargados:', data.length)
+      console.log('✅ Productos cargados:', data.data.length)
     } else {
       console.warn('⚠️ Sin productos disponibles')
     }

@@ -109,7 +109,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useApi } from '../composables/useApi.js'
 import GestionPedidos from './GestionPedidos.vue'
 import DashboardView from './DashboardView.vue'
 import GestionProductos from './GestionProductos.vue'
@@ -118,7 +117,6 @@ import GestionCupones from './GestionCupones.vue'
 import ConfiguracionView from './ConfiguracionView.vue'
 
 const emit = defineEmits(['logout'])
-const { post } = useApi()
 
 // Estado
 const isSidebarCollapsed = ref(true)
@@ -162,19 +160,37 @@ const iniciarAgenteIA = async () => {
   cargandoIA.value = true
   propuestasIA.value = []
   analisisIA.value = ''
-
   try {
-    const data = await post('/admin/cupones/proponer')
-
-    if (data?.propuesta) {
+    // Crear AbortController para timeout manual de 2 minutos
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos
+    
+    const response = await fetch('http://localhost:5003/api/cupones/proponer', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    clearTimeout(timeoutId)
+    
+    const data = await response.json()
+    if (data.success && data.propuesta) {
       propuestasIA.value = data.propuesta.cupones || []
       analisisIA.value = data.propuesta.analisis || ''
     } else {
-      analisisIA.value = 'No se pudieron generar propuestas'
+      console.warn('[IA Cupones] Respuesta sin éxito:', data)
+      analisisIA.value = data.mensaje || 'No se pudieron generar propuestas'
     }
   } catch (error) {
-    console.warn('[IA Cupones] Error:', error.message)
-    analisisIA.value = 'No se pudieron cargar las propuestas de IA.'
+    if (error.name === 'AbortError') {
+      console.warn('[IA Cupones] Timeout - La IA tardó más de 2 minutos')
+      analisisIA.value = 'La IA tardó demasiado en responder. Intenta nuevamente.'
+    } else {
+      console.warn('[IA Cupones] Agente no disponible:', error.message)
+      analisisIA.value = 'Agente de IA no disponible. Verifica que esté corriendo en puerto 5003'
+    }
   } finally {
     cargandoIA.value = false
   }

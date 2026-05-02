@@ -184,9 +184,6 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useApi } from '../composables/useApi.js'
-
-const { get } = useApi()
 
 // =====================
 // STATE
@@ -326,6 +323,11 @@ const pedidosPaginados = computed(() => {
 })
 
 // =====================
+// URLS
+// =====================
+const PEDIDOS_URL = 'http://localhost:8000/api/admin/pedidos'
+
+// =====================
 // DATA
 // =====================
 async function cargarPedidos() {
@@ -333,8 +335,12 @@ async function cargarPedidos() {
   errorPedidos.value = null
 
   try {
-    const data = await get('/admin/pedidos?filtro=todos')
-    pedidos.value = Array.isArray(data) ? data : (data?.pedidos || [])
+    const res = await fetch(`${PEDIDOS_URL}?filtro=todos`)
+    const data = await res.json()
+
+    if (!data.success) throw new Error(data.error || 'Error al cargar pedidos')
+
+    pedidos.value = data.data || []
     console.log('✅ Pedidos cargados:', pedidos.value.length)
 
   } catch (e) {

@@ -46,7 +46,7 @@
           </div>
 
           <div class="option-item">
-            <button @click="rotatImage" class="btn btn-option">
+            <button @click="rotateImage" class="btn btn-option">
               🔄 ROTAR IMAGEN
             </button>
             <p class="option-description">Gira la imagen 90 grados</p>
@@ -80,7 +80,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
+//import { useApi } from '@/composables/useApi'
+import { useApi } from '../composables/useApi.js'
+
+const { removeBackground: removeBgApi } = useApi()
 
 const emit = defineEmits(['image-processed', 'skip-editing', 'go-back'])
 
@@ -95,167 +99,128 @@ const loading = ref(false)
 const hasChanges = ref(false)
 const status = ref('')
 const statusType = ref('info')
+
 const imageRotation = ref(0)
 const imageFlipped = ref(false)
 const backgroundRemoved = ref(false)
 const imageFilter = ref('')
 
-// Variable para almacenar la imagen procesada (si se modifica)
 const imagenUrlActual = ref(props.imagenUrl)
 
-// Computed para obtener la imagen actual (original o procesada)
+// Abort controller (se mantiene por UX)
+let controller = null
+
 const imagenDisplayUrl = computed(() => imagenUrlActual.value)
 
-// Watch para sincronizar cuando la prop cambia
 watch(() => props.imagenUrl, (newUrl) => {
   imagenUrlActual.value = newUrl
-  // Resetear los cambios cuando viene una imagen nueva
+  resetState()
+})
+
+function resetState() {
   imageRotation.value = 0
   imageFlipped.value = false
   backgroundRemoved.value = false
   imageFilter.value = ''
   hasChanges.value = false
   status.value = ''
-})
+}
 
-function removeBackground() {
+// =============================
+// 🧠 REMOVE BACKGROUND (FIX)
+// =============================
+async function removeBackground() {
+  if (loading.value) return
+
   loading.value = true
   hasChanges.value = false
-  status.value = '⏳ Removiendo fondo con IA (10-180 segundos aprox. La primera vez tarda más)...'
+  status.value = '⏳ Removiendo fondo con IA...'
   statusType.value = 'info'
 
-  console.log('[removeBackground] Iniciando, imagen URL:', imagenUrlActual.value)
+  try {
+    let blob
 
-  // Si la imagen es un blob local (data:image/...), convertirla directamente
-  if (imagenUrlActual.value.startsWith('data:')) {
-    console.log('[removeBackground] Detectada imagen local (blob)')
-    fetch(imagenUrlActual.value)
-      .then(res => res.blob())
-      .then(blob => sendToRemoveBackground(blob))
-      .catch(err => handleRemoveBackgroundError(err))
-  } else {
-    // Si es una URL, descargarla
-    console.log('[removeBackground] Detectada imagen remota (URL)')
-    fetch(imagenUrlActual.value, { mode: 'cors' })
-      .then(response => {
-        console.log('[removeBackground] Fetch status:', response.status)
-        if (!response.ok) throw new Error(`No se pudo obtener la imagen: ${response.status}`)
-        return response.blob()
-      })
-      .then(blob => sendToRemoveBackground(blob))
-      .catch(err => handleRemoveBackgroundError(err))
+    if (imagenUrlActual.value.startsWith('data:')) {
+      blob = await fetch(imagenUrlActual.value).then(res => res.blob())
+    } else {
+      const response = await fetch(imagenUrlActual.value)
+      if (!response.ok) throw new Error('No se pudo obtener la imagen')
+      blob = await response.blob()
+    }
+
+    // ✅ USANDO useApi
+    const data = await removeBgApi(blob)
+
+    // compatibilidad backend
+    const newImage = data?.imagen_url || data?.data?.imagen_url
+
+    if (!newImage) {
+      throw new Error('No se recibió imagen procesada')
+    }
+
+    imagenUrlActual.value = newImage
+
+    backgroundRemoved.value = true
+    imageFilter.value = 'drop-shadow(0 0 10px rgba(6, 182, 212, 0.5))'
+    hasChanges.value = true
+
+    status.value = '✅ ¡Fondo removido exitosamente!'
+    statusType.value = 'success'
+
+    setTimeout(() => {
+      status.value = ''
+    }, 3000)
+
+  } catch (err) {
+    if (err.name === 'AbortError') return
+
+    let msg = err.message
+
+    if (msg.includes('fetch')) {
+      msg = 'Error de conexión con el backend'
+    }
+
+    status.value = `❌ ${msg}`
+    statusType.value = 'error'
+
+    setTimeout(() => {
+      status.value = ''
+    }, 8000)
+
+  } finally {
+    loading.value = false
   }
 }
 
-function sendToRemoveBackground(blob) {
-  console.log('[removeBackground] Blob obtenido, tamaño:', blob.size, 'tipo:', blob.type)
-  
-  const formData = new FormData()
-  formData.append('file', blob, 'imagen.png')
-  
-  console.log('[removeBackground] Enviando POST a /api/remove-background')
-  
-  // Crear un AbortController para poder cancelar si es necesario
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => {
-    controller.abort()
-    handleRemoveBackgroundError(new Error('Timeout: El proceso tardó más de 5 minutos. Intenta con una imagen más pequeña.'))
-  }, 300000) // 5 minutos de timeout
-  
-  fetch('http://localhost:8000/api/remove-background', {
-    method: 'POST',
-    body: formData,
-    signal: controller.signal
-  })
-    .then(response => {
-      console.log('[removeBackground] Respuesta status:', response.status)
-      
-      if (!response.ok) {
-        return response.json().then(json => {
-          throw new Error(json.detail?.error || json.error || `Error HTTP ${response.status}`)
-        })
-      }
-      return response.json()
-    })
-    .then(data => {
-      clearTimeout(timeoutId) // Limpiar el timeout
-      console.log('[removeBackground] Datos recibidos:', data)
-      
-      if (data.success || data.data?.imagen_url) {
-        loading.value = false
-        status.value = '✅ ¡Fondo removido exitosamente!'
-        statusType.value = 'success'
-        backgroundRemoved.value = true
-        imageFilter.value = 'drop-shadow(0 0 10px rgba(6, 182, 212, 0.5))'
-        hasChanges.value = true
-        
-        console.log('[removeBackground] Actualizando imagen...')
-        imagenUrlActual.value = data.data.imagen_url
-        console.log('[removeBackground] Imagen actualizada exitosamente')
-        
-        // Limpiar mensaje después de 3 segundos
-        setTimeout(() => {
-          status.value = ''
-        }, 3000)
-      } else {
-        throw new Error(data.detail?.error || data.error || 'Error desconocido del servidor')
-      }
-    })
-    .catch(error => {
-      clearTimeout(timeoutId) // Limpiar el timeout también en caso de error
-      console.error('[removeBackground] Error:', error)
-      handleRemoveBackgroundError(error)
-    })
-}
-
-function handleRemoveBackgroundError(error) {
-  loading.value = false
-  
-  // Mejorar el mensaje de error según el tipo
-  let errorMessage = 'No se pudo remover el fondo'
-  
-  if (error.name === 'AbortError') {
-    errorMessage = 'Timeout: El proceso tardó demasiado (>5 min)'
-  } else if (error.message.includes('Failed to fetch')) {
-    errorMessage = 'Error de conexión. ¿Está corriendo el servidor FastAPI?'
-  } else if (error.message) {
-    errorMessage = error.message
-  }
-  
-  status.value = `❌ Error: ${errorMessage}`
-  statusType.value = 'error'
-  console.error('[removeBackground] Error final:', error)
-  
-  // Mantener el mensaje de error visible por más tiempo
-  setTimeout(() => {
-    status.value = ''
-  }, 10000)
-}
-
-function rotatImage() {
+// =============================
+// 🔄 TRANSFORMACIONES
+// =============================
+function rotateImage() {
   imageRotation.value = (imageRotation.value + 90) % 360
   hasChanges.value = true
-  status.value = `� Imagen rotada ${imageRotation.value}° - ¡Perfecto!`
+
+  status.value = `🔄 Imagen rotada ${imageRotation.value}°`
   statusType.value = 'success'
-  
-  // Limpiar el mensaje después de 3 segundos
-  setTimeout(() => {
-    status.value = ''
-  }, 3000)
+
+  setTimeout(() => status.value = '', 2000)
 }
 
 function flipImage() {
   imageFlipped.value = !imageFlipped.value
   hasChanges.value = true
-  status.value = imageFlipped.value ? '↔️ Imagen volteada - ¡Listo!' : '↔️ Imagen restaurada'
+
+  status.value = imageFlipped.value
+    ? '↔️ Imagen volteada'
+    : '↔️ Imagen restaurada'
+
   statusType.value = 'success'
-  
-  // Limpiar el mensaje después de 3 segundos
-  setTimeout(() => {
-    status.value = ''
-  }, 3000)
+
+  setTimeout(() => status.value = '', 2000)
 }
 
+// =============================
+// 🚀 ACCIONES
+// =============================
 function continueWithoutChanges() {
   emit('skip-editing')
 }
@@ -270,8 +235,13 @@ function confirmChanges() {
 }
 
 function goBack() {
+  if (controller) controller.abort()
   emit('go-back')
 }
+
+onUnmounted(() => {
+  if (controller) controller.abort()
+})
 </script>
 
 <style scoped>

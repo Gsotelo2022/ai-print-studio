@@ -1,0 +1,144 @@
+# Estructura del proyecto ai-print-studio
+
+Este archivo presenta la estructura del repositorio (se omiten instalaciones de entornos virtuales y `node_modules`).
+
+- .editorconfig
+- .gitignore
+- README.md
+- RUN.bat
+- stop.bat
+- agentes-Ollama/
+  - setup_agente.bat
+  - start-all-agentes.bat
+  - agente-cupones/
+    - agente_descuentos.py
+    - agente_descuentos.py.backup
+    - api_descuentos.py
+    - README.md
+    - requirements.txt
+    - start-agente-descuentos.bat
+  - agente-precios/
+    - agente_precios.py
+    - README.md
+    - start-agente-precios.bat
+    - start-agente-precios.ps1
+  - agente-productos/
+    - agente_productos.py
+    - README.md
+    - requirements.txt
+
+- backend/
+  - .gitignore
+  - composer.json
+  - composer.lock
+  - package.json
+  - package-lock.json
+  - generateImage.js
+  - server.js
+  - index.php
+  - config/
+    - app.php
+    - database.php
+  - api/
+    - create-order.php
+    - create-payment.php
+    - create-user.php
+    - generate-image.php
+    - get-dashboard-stats.php
+    - get-users.php
+    - login.php
+    - remove-background.php
+    - save-payment.php
+    - imagenes-generadas-con-IA/ (imágenes generadas)
+  - api_python/
+    - app.py
+    - app_v2.py
+    - crear_admin.py
+    - crear_clientes_ejemplo.py
+    - resetear_admin.py
+    - db.py
+    - requirements.txt
+  - models/
+    - schema.sql
+  - db/
+    - ai_print_studio.db
+  - helpers/
+    - response.php
+  - uploads/
+    - designs/
+    - thumbnails/
+
+- frontend/
+  - index.html
+  - vite.config.js
+  - package.json
+  - package-lock.json
+  - mockups/
+    - taza.png
+    - sudadera.png
+    - camiseta.png
+  - src/
+    - main.js
+    - App.vue
+    - assets/
+      - styles.css
+      - background.png
+      - calabera.png
+      - logo-prendete-rock.jpg
+      - logo-prendete-rock2.jpg
+    - components/
+      - AdminDashboard.vue
+      - BackgroundRemover.vue
+      - CheckoutPanel.vue
+      - ConfiguracionView.vue
+      - CreateUser.vue
+      - CuponesDisponibles.vue
+      - DashboardView.vue
+      - EditClienteModal.vue
+      - GenerateImage.vue
+      - GestionClientes.vue
+      - GestionCupones.vue
+      - GestionPedidos.vue
+      - GestionProductos.vue
+      - HeroShowcase.vue
+      - ImageUploader.vue
+      - Login.vue
+      - MisDisenosGaleria.vue
+      - MisPedidos.vue
+      - PreviewPanel.vue
+      - ProductSelector.vue
+      - PromptGenerator.vue
+      - UsersList.vue
+    - composables/
+      - useApi.js
+    - pages/
+      - Success.vue
+
+- scripts/
+  - analizar-limpieza.ps1
+  - check_archivos_diseno.py
+  - check_columns.py
+  - check_usuarios.py
+  - descargar-modelo-ia.bat
+  - eliminar-ahora.ps1
+  - eliminar-archivos-obsoletos.ps1
+  - install-dependencies.ps1
+  - limpiar-proyecto.ps1
+  - verificar_duplicados.py
+
+- test-genericos/
+  - listar_endpoints.py
+  - README.md
+  - reproducir_winerror_233.py
+  - test_agente_cupones.py
+  - test_crear_orden_base64.py
+  - test_cupones.py
+  - test_cupones_simple.py
+  - test_estadisticas_agente.py
+  - test_imagen_grande.py
+  - test_mis_disenos.py
+  - test_ollama_directo.py
+  - test_precio_descuento.py
+  - test_productos.py
+
+Nota: Se han omitido carpetas `venv/` y `node_modules/` para mantener el listado enfocado en el código fuente.

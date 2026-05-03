@@ -2,7 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
 import json
-import pyodbc
+import psycopg2
+import os
 
 app = Flask(__name__)
 CORS(app)  # Permitir peticiones desde el frontend
@@ -147,15 +148,18 @@ def verificar_producto_existe(detalle):
     """Verifica si existe un producto con ese Detalle en la BD"""
     try:
         print(f"[DB] Verificando si existe producto: '{detalle}'")
-        conn = pyodbc.connect(
-            'DRIVER={ODBC Driver 17 for SQL Server};'
-            'SERVER=.\\SQLEXPRESS01;'
-            'DATABASE=PrendeteRock;'
-            'Trusted_Connection=yes;'
+        conn = psycopg2.connect(
+            host=os.getenv("PG_HOST", "127.0.0.1"),
+            port=int(os.getenv("PG_PORT", "5432")),
+            dbname=os.getenv("PG_DB", "PrendeteRock"),
+            user=os.getenv("PG_USER", "postgres"),
+            password=os.getenv("PG_PASSWORD", ""),
+            connect_timeout=5,
+            sslmode="disable"
         )
         
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM Productos WHERE Detalle = ?", (detalle,))
+        cursor.execute("SELECT COUNT(*) FROM Productos WHERE Detalle = %s", (detalle,))
         count = cursor.fetchone()[0]
         
         cursor.close()

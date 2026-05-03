@@ -1,96 +1,101 @@
 // ============================================
-// useApi.js - Composable para llamadas al backend
+// useApi.js - Composable PRO (VERSIÓN FINAL)
 // ============================================
-// Un "composable" en Vue 3 es una función reutilizable que encapsula
-// lógica. En este caso, encapsula cómo hablar con el backend PHP.
-//
-// ¿Por qué? Para no repetir fetch() + manejo de errores en cada componente.
-// Todos los componentes importan useApi() y usan sus funciones.
 
 import { ref } from 'vue'
 
+// ============================================
+// 🌐 BASE URL DINÁMICA
+// ============================================
+const getBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  return `${apiUrl}/api`
+}
+
 export function useApi() {
-  // ref() crea una variable reactiva. Cuando cambia,
-  // Vue actualiza automáticamente la UI.
   const loading = ref(false)
   const error = ref(null)
+  const baseApi = getBaseUrl()
 
-  // Función genérica para hacer peticiones POST al backend
-  async function post(url, data) {
-    loading.value = true
-    error.value = null
+  // ============================================
+  // 🔐 HEADERS + JWT
+  // ============================================
+  function getHeaders(isFormData = false) {
+    const headers = {}
+    const token = localStorage.getItem('token')
 
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    return headers
+  }
+
+  // ============================================
+  // 🧠 PARSE JSON SEGURO
+  // ============================================
+  async function safeJson(response) {
     try {
-      // fetch() es la API nativa del navegador para hacer peticiones HTTP.
-      // Es el equivalente a cURL en PHP pero del lado del cliente.
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // JSON.stringify convierte un objeto JS a texto JSON
-        // (igual que json_encode en PHP)
-        body: JSON.stringify(data),
-      })
-
-      // Convertir la respuesta a objeto JavaScript
-      // (igual que json_decode en PHP)
-      const result = await response.json()
-
-      // Verificar si la respuesta es un error HTTP
-      if (!response.ok) {
-        // Manejar errores específicos
-        if (response.status === 401) {
-          throw new Error(result.detail?.error || 'Credenciales inválidas. Verifica email y contraseña.')
-        }
-        if (response.status === 409) {
-          throw new Error(result.detail?.error || 'Este email ya está registrado.')
-        }
-        if (response.status === 500) {
-          throw new Error(result.detail?.error || 'Error del servidor. Intenta más tarde.')
-        }
-        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
-      }
-
-      // Nuestro backend siempre devuelve { success: true/false, ... }
-      if (!result.success) {
-        throw new Error(result.error || 'Error desconocido')
-      }
-
-      return result.data
-
-    } catch (err) {
-      error.value = err.message
-      throw err
-
-    } finally {
-      // finally se ejecuta siempre, haya error o no
-      loading.value = false
+      return await response.json()
+    } catch {
+      throw new Error('El backend no respondió JSON válido')
     }
   }
 
-  // Función GET genérica
+  // ============================================
+  // 🚨 MANEJO DE ERRORES HTTP
+  // ============================================
+  function handleHttpError(response, result) {
+    if (response.status === 401) {
+      localStorage.removeItem('token')
+      throw new Error('Sesión expirada. Iniciá sesión nuevamente.')
+    }
+
+    if (response.status === 403) {
+      throw new Error('No tenés permisos para esta acción')
+    }
+
+    if (response.status === 404) {
+      throw new Error('Recurso no encontrado')
+    }
+
+    if (response.status === 409) {
+      throw new Error(result?.detail?.error || 'Conflicto de datos')
+    }
+
+    if (response.status === 500) {
+      console.error('🔥 ERROR BACKEND:', result)
+      const backendMsg = result?.detail?.error || result?.detail || result?.error || null
+      throw new Error(backendMsg || 'Error interno del servidor')
+    }
+
+    throw new Error(result?.detail?.error || result?.error || `Error HTTP ${response.status}`)
+  }
+
+  // ============================================
+  // 📡 GET
+  // ============================================
   async function get(url) {
     loading.value = true
     error.value = null
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(`${baseApi}${url}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
       })
 
-      const result = await response.json()
-      
-      // Verificar si la respuesta es un error HTTP
-      if (!response.ok) {
-        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
-      }
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Error desconocido')
-      }
+      const result = await safeJson(response)
+
+      if (!response.ok) handleHttpError(response, result)
+      if (!result.success) throw new Error(result.error || 'Error desconocido')
+
       return result.data
+
     } catch (err) {
       error.value = err.message
       throw err
@@ -99,28 +104,56 @@ export function useApi() {
     }
   }
 
-  // Función PUT genérica
+  // ============================================
+  // 📡 POST
+  // ============================================
+  async function post(url, data, isFormData = false) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await fetch(`${baseApi}${url}`, {
+        method: 'POST',
+        headers: getHeaders(isFormData),
+        body: isFormData ? data : JSON.stringify(data),
+      })
+
+      const result = await safeJson(response)
+
+      if (!response.ok) handleHttpError(response, result)
+      if (!result.success) throw new Error(result.error || 'Error desconocido')
+
+      return result.data
+
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // ============================================
+  // 📡 PUT
+  // ============================================
   async function put(url, data) {
     loading.value = true
     error.value = null
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(`${baseApi}${url}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(data),
       })
 
-      const result = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
-      }
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Error desconocido')
-      }
+      const result = await safeJson(response)
+
+      if (!response.ok) handleHttpError(response, result)
+      if (!result.success) throw new Error(result.error || 'Error desconocido')
+
       return result.data
+
     } catch (err) {
       error.value = err.message
       throw err
@@ -129,28 +162,60 @@ export function useApi() {
     }
   }
 
-  // Base URL para los endpoints PHP (ajustar si correspondiere)
-  // Nuevo backend en Python (FastAPI) que corre en http://localhost:8000
-  const baseApi = 'http://localhost:8000/api'
+  // ============================================
+  // 📡 DELETE
+  // ============================================
+  async function del(url) {
+    loading.value = true
+    error.value = null
 
-  // Funciones específicas: listar usuarios, registro y login
-  async function getUsers() {
-    return get(`${baseApi}/users`)
+    try {
+      const response = await fetch(`${baseApi}${url}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      })
+
+      const result = await safeJson(response)
+
+      if (!response.ok) handleHttpError(response, result)
+      if (!result.success) throw new Error(result.error || 'Error desconocido')
+
+      return result.data
+
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
+  // ============================================
+  // 🔐 AUTH
+  // ============================================
   async function registerUser(payload) {
-    return post(`${baseApi}/register`, payload)
+    return post('/register', payload)
   }
 
   async function loginUser(payload) {
-    return post(`${baseApi}/login`, payload)
+    const data = await post('/login', payload)
+
+    if (data.token) {
+      localStorage.setItem('token', data.token)
+    }
+
+    return data
   }
 
-  // --- Funciones específicas para cada endpoint ---
+  async function login(email, password) {
+    return loginUser({ email, password })
+  }
 
-  // Generar imagen con Stability AI
+  // ============================================
+  // 🤖 IA
+  // ============================================
   async function generateImage(prompt, options = {}) {
-    return post('http://localhost:8080/api/generate-image.php', {
+    return post('/generate-image', {
       prompt,
       style: options.style || 'realista',
       width: options.width || 1024,
@@ -158,105 +223,121 @@ export function useApi() {
     })
   }
 
-  // Crear pedido en la base de datos
+  async function removeBackground(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return post('/remove-background', formData, true)
+  }
+
+  // ============================================
+  // 🎨 DISEÑOS
+  // ============================================
+  async function uploadDesign(file, userId) {
+    const formData = new FormData()
+    formData.append('file', file)
+    // user_id va como query param porque el backend usa FastAPI Form Query
+    return post(`/upload-design?user_id=${userId}`, formData, true)
+  }
+
+  async function getMisDisenos(userId) {
+    return get(`/mis-disenos/${userId}`)
+  }
+
+  // ============================================
+  // 🛒 PEDIDOS
+  // ============================================
   async function createOrder(orderData) {
-    return post('/api/create-order.php', orderData)
+    return post('/create-order', orderData)
   }
 
-  // Crear pago con MercadoPago
-  async function createPayment(orderId) {
-    return post('http://localhost:8080/api/create-payment.php', {
-      order_id: orderId,
-    })
+  async function createPayment(orderData) {
+    return post('/create-payment', orderData)
   }
 
-  // Obtener todos los pedidos para el admin
+  async function getMisPedidos(idUsuario) {
+    return get(`/mis-pedidos/${idUsuario}`)
+  }
+
   async function getAllOrders() {
-    return get(`${baseApi}/admin/pedidos`)
+    return get('/admin/pedidos')
   }
 
-  // Actualizar estado de pedido
-  async function updateOrderStatus(idDetalle, nuevoEstado) {
-    return put(`${baseApi}/admin/pedidos/${idDetalle}/estado`, { estado: nuevoEstado })
+  async function updateOrderStatus(id, estado) {
+    return put(`/admin/pedidos/${id}/estado`, { estado })
   }
 
-  // Actualizar estado de pago
-  async function updateOrderPayment(idDetalle, nuevoPago) {
-    return put(`${baseApi}/admin/pedidos/${idDetalle}/pago`, { estado_pago: nuevoPago })
+  async function updateOrderPayment(id, estado_pago) {
+    return put(`/admin/pedidos/${id}/pago`, { estado_pago })
   }
 
-  // DELETE genérica
-  async function del(url) {
-    loading.value = true
-    error.value = null
-
-    try {
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      const result = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(result.detail?.error || result.error || `Error: ${response.status}`)
-      }
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Error desconocido')
-      }
-      return result.data
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
+  // ============================================
+  // 📦 PRODUCTOS
+  // ============================================
+  async function createProducto(data) {
+    return post('/admin/productos', data)
   }
 
-  // Actualizar producto
-  async function updateProducto(idProducto, productoData) {
-    return put(`${baseApi}/admin/productos/${idProducto}`, productoData)
+  async function updateProducto(id, data) {
+    return put(`/admin/productos/${id}`, data)
   }
 
-  // Actualizar precio de todas las variantes de un producto por Detalle
-  async function updatePrecioProducto(detalle, nuevoPrecio, nuevoDetalle = null) {
-    return put(`${baseApi}/admin/productos/detalle/${encodeURIComponent(detalle)}/precio`, {
-      precio: nuevoPrecio,
-      nuevo_detalle: nuevoDetalle
+  async function deleteProducto(id) {
+    return del(`/admin/productos/${id}`)
+  }
+
+  async function updatePrecioProducto(detalle, precio, nuevoDetalle = null) {
+    return put(`/admin/productos/detalle/${encodeURIComponent(detalle)}/precio`, {
+      precio,
+      nuevo_detalle: nuevoDetalle,
     })
   }
 
-  // Eliminar producto
-  async function deleteProducto(idProducto) {
-    return del(`${baseApi}/admin/productos/${idProducto}`)
+  // ============================================
+  // 🎟️ CUPONES
+  // ============================================
+  async function getCuponesDisponibles() {
+    return get('/cupones')
   }
 
-  // Crear producto nuevo
-  async function createProducto(productoData) {
-    return post(`${baseApi}/admin/productos`, productoData)
+  async function getCuponesUsuario(userId) {
+    return get(`/cupones/disponibles/${userId}`)
   }
 
-  // Retornamos todo lo que los componentes necesitan
+  // ============================================
+  // 🚀 EXPORT
+  // ============================================
   return {
     loading,
     error,
+
     get,
     post,
     put,
     del,
-    getUsers,
-    registerUser,
+
+    login,
     loginUser,
+    registerUser,
+
     generateImage,
+    removeBackground,
+
+    uploadDesign,
+    getMisDisenos,
+
     createOrder,
     createPayment,
+    getMisPedidos,
     getAllOrders,
     updateOrderStatus,
     updateOrderPayment,
-    updateProducto,
-    updatePrecioProducto,
-    deleteProducto,
+
     createProducto,
+    updateProducto,
+    deleteProducto,
+    updatePrecioProducto,
+
+    getCuponesDisponibles,
+    getCuponesUsuario,
   }
 }

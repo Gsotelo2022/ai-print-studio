@@ -2,7 +2,7 @@
 
 > Diseña y compra estampados personalizados con inteligencia artificial.
 
-Proyecto educativo para aprender arquitectura web moderna: **Vue 3 + PHP + SQL Server**.
+Proyecto web moderno: **Vue 3 + FastAPI (Python) + PostgreSQL + Ollama**.
 
 ---
 
@@ -23,10 +23,10 @@ RUN.bat
 ```
 
 Esto iniciará automáticamente:
-- 🔹 **FastAPI Backend V2** en `http://127.0.0.1:8000` (con virtual environment)
+- 🔹 **FastAPI Backend** en `http://127.0.0.1:8000` (con virtual environment)
 - 🔹 **Vue.js Frontend** en `http://localhost:5173`
-- 🔹 **Agente IA** en `http://127.0.0.1:5001` (si OLLAMA está instalado)
-- 🔹 **PHP Backend** en `http://127.0.0.1:8080` (si PHP está instalado)
+- 🔹 **Ollama IA** para generación de imágenes (si está instalado)
+- 🔹 **Node Backend** en `http://127.0.0.1:3000` (para generación de imágenes)
 
 ### Detener la aplicación
 
@@ -42,62 +42,79 @@ stop.bat
 ```
 ai-print-studio/
 │
-├── backend/                         ← API REST en PHP
-│   ├── config/
-│   │   ├── app.php                  ← Claves API (Stability AI, MercadoPago)
-│   │   └── database.php             ← Conexión PDO a SQL Server
-│   ├── helpers/
-│   │   └── response.php             ← Funciones JSON (éxito, error, validación)
-│   ├── api/
-│   │   ├── generate-image.php       ← POST: genera imagen con Stability AI
-│   │   ├── create-order.php         ← POST: guarda pedido en SQL Server
-│   │   └── create-payment.php       ← POST: crea pago en MercadoPago
-│   └── uploads/                     ← Imágenes generadas (auto-creado)
+├── backend/
+│   ├── api_python/                  ← API REST con FastAPI (BACKEND ACTIVO)
+│   │   ├── app_v2.py                ← Aplicación principal FastAPI
+│   │   ├── db.py                    ← Conexión a PostgreSQL
+│   │   ├── api/
+│   │   │   ├── routers/             ← Endpoints organizados por módulo
+│   │   │   │   ├── auth.py          ← Registro y login
+│   │   │   │   ├── productos.py     ← Catálogo de productos
+│   │   │   │   ├── pedidos.py       ← Crear pedidos y pagos
+│   │   │   │   ├── disenos.py       ← Subir y listar diseños
+│   │   │   │   ├── cupones.py       ← Descuentos
+│   │   │   │   └── admin.py         ← Panel administrativo
+│   │   │   └── dependencies.py      ← Funciones auxiliares
+│   │   └── requirements.txt         ← Dependencias Python
+│   │
+│   ├── server.js                    ← Node server para generación de imágenes
+│   └── uploads/                     ← Archivos subidos
 │
 ├── frontend/                        ← App Vue 3 con Vite
-│   ├── index.html                   ← HTML base (punto de entrada)
+│   ├── index.html                   ← HTML base
 │   ├── package.json                 ← Dependencias npm
-│   ├── vite.config.js               ← Config Vite + proxy al backend
+│   ├── vite.config.js               ← Config Vite
 │   └── src/
-│       ├── main.js                  ← Inicializa Vue y monta la app
+│       ├── main.js                  ← Inicializa Vue
 │       ├── App.vue                  ← Componente raíz (orquestador)
 │       ├── composables/
-│       │   └── useApi.js            ← Hook reutilizable para llamadas fetch
+│       │   └── useApi.js            ← Composable para llamadas API
 │       ├── components/
-│       │   ├── PromptGenerator.vue  ← Paso 1: escribe prompt y genera imagen
-│       │   ├── ProductSelector.vue  ← Paso 2: elige producto y variantes
-│       │   ├── PreviewPanel.vue     ← Paso 3: preview + confirma pedido
-│       │   └── CheckoutPanel.vue    ← Paso 4: pago con MercadoPago
+│       │   ├── Login.vue            ← Autenticación
+│       │   ├── CreateUser.vue       ← Registro de usuarios
+│       │   ├── GenerateImage.vue    ← Generar imagen con IA
+│       │   ├── ImageUploader.vue    ← Subir imagen propia
+│       │   ├── BackgroundRemover.vue← Remover fondo de imagen
+│       │   ├── ProductSelector.vue  ← Seleccionar producto
+│       │   ├── PreviewPanel.vue     ← Vista previa del producto
+│       │   ├── CheckoutPanel.vue    ← Pago con MercadoPago
+│       │   ├── MisDisenosGaleria.vue← Galería de diseños del usuario
+│       │   ├── MisPedidos.vue       ← Historial de pedidos
+│       │   └── AdminDashboard.vue   ← Panel de administración
 │       └── assets/
-│           └── styles.css           ← Estilos globales de la app
+│           └── styles.css           ← Estilos globales (modo nocturno)
 │
-├── database/
-│   └── schema.sql                   ← CREATE TABLE pedidos
+├── agentes-Ollama/                  ← Agentes IA con Ollama
+│   ├── agente-productos/            ← Gestión de catálogo
+│   ├── agente-precios/              ← Cálculo de precios
+│   └── agente-cupones/              ← Generación de descuentos
 │
 └── README.md                        ← Este archivo
 ```
 
 ---
 
-## Flujo Completo (cómo se conecta todo)
+## Flujo Completo
 
 ```
-USUARIO                 FRONTEND (Vue)          BACKEND (PHP)           APIs EXTERNAS
-  │                         │                       │                       │
-  │  1. Escribe prompt      │                       │                       │
-  │ ──────────────────────► │                       │                       │
-  │                         │  fetch POST           │                       │
-  │                         │  /api/generate-image  │                       │
-  │                         │ ────────────────────► │                       │
-  │                         │                       │  cURL POST            │
-  │                         │                       │ ────────────────────► │ Stability AI
-  │                         │                       │ ◄──────────────────── │ (imagen)
-  │                         │ ◄──────────────────── │                       │
-  │  2. Ve imagen           │  { imagen_url }       │                       │
-  │ ◄────────────────────── │                       │                       │
-  │                         │                       │                       │
-  │  3. Elige producto      │                       │                       │
-  │ ──────────────────────► │                       │                       │
+USUARIO              FRONTEND (Vue)       BACKEND (FastAPI)      APIs/IA
+  │                      │                      │                  │
+  │  1. Login/Registro   │                      │                  │
+  │ ───────────────────► │  POST /api/login     │                  │
+  │                      │ ───────────────────► │                  │
+  │                      │ ◄─────────────────── │ (JWT token)      │
+  │                      │                      │                  │
+  │  2. Crear diseño     │                      │                  │
+  │ ───────────────────► │  POST /api/generate  │                  │
+  │                      │ ───────────────────► │  cURL to Ollama  │
+  │                      │                      │ ───────────────► │
+  │                      │                      │ ◄─────────────── │ (imagen)
+  │                      │ ◄─────────────────── │                  │
+  │                      │                      │                  │
+  │  3. Elegir producto  │                      │                  │
+  │ ───────────────────► │  GET /api/productos  │                  │
+  │                      │ ───────────────────► │                  │
+  │                      │ ◄─────────────────── │ (catálogo)       │
   │                         │  fetch POST           │                       │
   │  4. Confirma            │  /api/create-order    │                       │
   │ ──────────────────────► │ ────────────────────► │                       │

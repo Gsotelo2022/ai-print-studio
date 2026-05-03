@@ -255,22 +255,21 @@
 </template>
 
 <script>
+//import { useApi } from '@/composables/useApi.js'
+import { useApi } from '../composables/useApi.js'
+
 export default {
   name: 'GestionCupones',
 
+  setup() {
+    const { get, post, put, del } = useApi()
+    return { get, post, put, del }
+  },
+
   props: {
-    propuestasExternas: {
-      type: Array,
-      default: () => []
-    },
-    analisisExterno: {
-      type: String,
-      default: ''
-    },
-    cargandoIAExterno: {
-      type: Boolean,
-      default: false
-    }
+    propuestasExternas: { type: Array, default: () => [] },
+    analisisExterno: { type: String, default: '' },
+    cargandoIAExterno: { type: Boolean, default: false }
   },
   
   data() {
@@ -288,8 +287,8 @@ export default {
       cuponEditar: null,
       busqueda: '',
       toasts: [],
-      cuponesYaCargados: false, // Caché: solo cargar una vez
-      estadisticasYaCargadas: false, // Caché para estadísticas
+      cuponesYaCargados: false,
+      estadisticasYaCargadas: false,
       formulario: {
         codigo: '',
         descripcion: '',
@@ -323,33 +322,28 @@ export default {
     }
   },
 
-  watch: {},
-
   mounted() {
     this.cargarCupones()
     this.cargarEstadisticas()
   },
 
   methods: {
+
+    // =========================
+    // 📦 CUPONES
+    // =========================
     async cargarCupones(forzarRecarga = false) {
-      // Sistema de caché: solo cargar si es la primera vez, cambia filtro o se fuerza
-      if (this.cuponesYaCargados && !forzarRecarga) {
-        console.log('✅ Cupones ya en caché, no se recargan')
-        return
-      }
-      
+      if (this.cuponesYaCargados && !forzarRecarga) return
+
       this.cargando = true
       try {
-        const response = await fetch(
-          `http://localhost:5003/api/cupones?incluir_inactivos=${this.mostrarInactivos}`
-        )
-        const data = await response.json()
-        if (data.success) {
-          this.cupones = data.cupones
-          this.cuponesYaCargados = true // Marcar como cargados
-        }
+        const data = await this.get(`/admin/cupones?incluir_inactivos=${this.mostrarInactivos}`)
+
+        this.cupones = data.cupones || data || []
+        this.cuponesYaCargados = true
+
       } catch (error) {
-        console.error('Error cargando cupones:', error)
+        console.error(error)
         this.mostrarToast('Error al cargar cupones', 'error')
       } finally {
         this.cargando = false
@@ -357,23 +351,20 @@ export default {
     },
 
     async cargarEstadisticas(forzarRecarga = false) {
-      // Caché para estadísticas
-      if (this.estadisticasYaCargadas && !forzarRecarga) {
-        return
-      }
-      
+      if (this.estadisticasYaCargadas && !forzarRecarga) return
+
       try {
-        const response = await fetch('http://localhost:5003/api/estadisticas')
-        const data = await response.json()
-        if (data.success) {
-          this.estadisticas = data.estadisticas
-          this.estadisticasYaCargadas = true
-        }
+        const data = await this.get('/admin/estadisticas')
+        this.estadisticas = data.estadisticas || data
+        this.estadisticasYaCargadas = true
       } catch (error) {
-        console.error('Error cargando estadísticas:', error)
+        console.error(error)
       }
     },
 
+    // =========================
+    // 🤖 IA
+    // =========================
     clickBotonIA() {
       if (this.todasPropuestas.length > 0) {
         this.mostrarModalPropuestas = true
@@ -387,22 +378,20 @@ export default {
       this.propuestasIA = []
 
       try {
-        const response = await fetch('http://localhost:5003/api/cupones/proponer', {
-          method: 'POST'
-        })
-        const data = await response.json()
-        
-        if (data.success && data.propuesta) {
+        const data = await this.post('/admin/cupones/proponer')
+
+        if (data?.propuesta) {
           this.propuestasIA = data.propuesta.cupones || []
           this.analisisIA = data.propuesta.analisis || ''
           this.estadisticas = data.estadisticas
-          this.estadisticasYaCargadas = true // Actualizar caché de estadísticas
+          this.estadisticasYaCargadas = true
         } else {
-          this.mostrarToast(data.mensaje || 'No se pudieron generar propuestas. ¿Ollama está corriendo?', 'advertencia')
+          this.mostrarToast('No se pudieron generar propuestas', 'advertencia')
         }
+
       } catch (error) {
-        console.error('Error consultando IA:', error)
-        this.mostrarToast('Error al consultar al agente IA', 'error')
+        console.error(error)
+        this.mostrarToast('Error al consultar IA', 'error')
       } finally {
         this.cargandoIA = false
       }
@@ -410,21 +399,85 @@ export default {
 
     crearDesdePropuesta(propuesta) {
       this.mostrarModalPropuestas = false
+
       this.$nextTick(() => {
-        const fechaExpiracion = new Date()
-        fechaExpiracion.setDate(fechaExpiracion.getDate() + propuesta.duracion_dias)
+        const fecha = new Date()
+        fecha.setDate(fecha.getDate() + propuesta.duracion_dias)
+
         this.formulario = {
           codigo: propuesta.codigo,
           descripcion: propuesta.descripcion,
           descuento_porcentaje: propuesta.descuento,
           usos_maximos: 100,
-          fecha_expiracion: fechaExpiracion.toISOString().split('T')[0]
+          fecha_expiracion: fecha.toISOString().split('T')[0]
         }
+
         this.cuponEditar = null
         this.mostrarFormulario = true
       })
     },
 
+    // =========================
+    // 💾 CRUD
+    // =========================
+    async guardarCupon() {
+      this.guardando = true
+
+      try {
+        const payload = {
+          ...this.formulario,
+          usos_maximos: this.formulario.usos_maximos || null,
+          fecha_expiracion: this.formulario.fecha_expiracion || null
+        }
+
+        if (this.cuponEditar) {
+          await this.put(`/admin/cupones/${this.cuponEditar.id_cupon}`, payload)
+        } else {
+          await this.post('/admin/cupones', payload)
+        }
+
+        this.mostrarToast('Cupón guardado', 'exito')
+        this.cerrarFormulario()
+        this.cargarCupones(true)
+        this.propuestasIA = []
+
+      } catch (error) {
+        console.error(error)
+        this.mostrarToast(error.message || 'Error al guardar cupón', 'error')
+      } finally {
+        this.guardando = false
+      }
+    },
+
+    async toggleEstado(cupon) {
+      try {
+        await this.put(`/admin/cupones/${cupon.id_cupon}`, {
+          activo: !cupon.activo
+        })
+
+        this.cargarCupones(true)
+
+      } catch (error) {
+        this.mostrarToast('Error al actualizar estado', 'error')
+      }
+    },
+
+    async eliminarCupon(cupon) {
+      if (!confirm(`¿Eliminar ${cupon.codigo}?`)) return
+
+      try {
+        await this.del(`/admin/cupones/${cupon.id_cupon}`)
+        this.mostrarToast('Cupón eliminado', 'exito')
+        this.cargarCupones(true)
+
+      } catch (error) {
+        this.mostrarToast('Error al eliminar cupón', 'error')
+      }
+    },
+
+    // =========================
+    // UI
+    // =========================
     abrirFormulario(cupon) {
       if (cupon) {
         this.cuponEditar = cupon
@@ -433,7 +486,7 @@ export default {
           descripcion: cupon.descripcion,
           descuento_porcentaje: cupon.descuento_porcentaje,
           usos_maximos: cupon.usos_maximos,
-          fecha_expiracion: cupon.fecha_expiracion ? cupon.fecha_expiracion.split('T')[0] : ''
+          fecha_expiracion: cupon.fecha_expiracion?.split('T')[0] || ''
         }
       } else {
         this.cuponEditar = null
@@ -453,118 +506,26 @@ export default {
       this.cuponEditar = null
     },
 
-    async guardarCupon() {
-      this.guardando = true
-      
-      try {
-        const url = this.cuponEditar
-          ? `http://localhost:5003/api/cupones/${this.cuponEditar.id_cupon}`
-          : 'http://localhost:5003/api/cupones'
-        
-        const method = this.cuponEditar ? 'PUT' : 'POST'
-        
-        // Preparar datos
-        const datos = { ...this.formulario }
-        if (!datos.usos_maximos) datos.usos_maximos = null
-        if (!datos.fecha_expiracion) datos.fecha_expiracion = null
-        
-        const response = await fetch(url, {
-          method,
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(datos)
-        })
-        
-        const result = await response.json()
-        
-        if (response.ok && result.success) {
-          this.mostrarToast(result.mensaje, 'exito')
-          this.cerrarFormulario()
-          this.cargarCupones(true) // Forzar recarga porque se creó/editó cupón
-          this.propuestasIA = [] // Limpiar propuestas después de crear
-        } else {
-          this.mostrarToast(result.mensaje || 'Error al guardar cupón', 'error')
-        }
-      } catch (error) {
-        console.error('Error guardando cupón:', error)
-        this.mostrarToast('Error al guardar cupón', 'error')
-      } finally {
-        this.guardando = false
-      }
-    },
-
-    async toggleEstado(cupon) {
-      const nuevoEstado = !cupon.activo
-      
-      try {
-        const response = await fetch(
-          `http://localhost:5003/api/cupones/${cupon.id_cupon}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ activo: nuevoEstado })
-          }
-        )
-        
-        const result = await response.json()
-        
-        if (response.ok && result.success) {
-          this.cargarCupones(true) // Forzar recarga
-        } else {
-          this.mostrarToast('Error al actualizar estado', 'error')
-        }
-      } catch (error) {
-        console.error('Error:', error)
-        this.mostrarToast('Error al actualizar estado', 'error')
-      }
-    },
-
-    async eliminarCupon(cupon) {
-      if (!confirm(`¿Eliminar el cupón ${cupon.codigo}?`)) return
-      
-      try {
-        const response = await fetch(
-          `http://localhost:5003/api/cupones/${cupon.id_cupon}`,
-          { method: 'DELETE' }
-        )
-        
-        const result = await response.json()
-        
-        if (response.ok && result.success) {
-          this.mostrarToast('Cupón eliminado', 'exito')
-          this.cargarCupones(true) // Forzar recarga
-        } else {
-          this.mostrarToast('Error al eliminar cupón', 'error')
-        }
-      } catch (error) {
-        console.error('Error:', error)
-        this.mostrarToast('Error al eliminar cupón', 'error')
-      }
-    },
-
-    formatearFecha(fecha) {
-      return new Date(fecha).toLocaleDateString('es-AR')
-    },
-
-    formatearPrecio(precio) {
-      return precio.toLocaleString('es-AR', { minimumFractionDigits: 0 })
-    },
-
-    scrollCarousel(which, direction) {
-      const refs = { propuestas: 'trackPropuestas', cupones: 'trackCupones', modal: 'trackModal' }
-      const el = this.$refs[refs[which]]
-      if (el) el.scrollBy({ left: direction * 340, behavior: 'smooth' })
-    },
-
     mostrarToast(msg, tipo = 'info') {
       const id = Date.now()
       this.toasts.push({ id, msg, tipo })
       setTimeout(() => {
         this.toasts = this.toasts.filter(t => t.id !== id)
       }, 3500)
+    },
+
+    formatearFecha(f) {
+      return new Date(f).toLocaleDateString('es-AR')
+    },
+
+    formatearPrecio(p) {
+      return p.toLocaleString('es-AR')
+    },
+
+    scrollCarousel(which, direction) {
+      const refs = { modal: 'trackModal' }
+      const el = this.$refs[refs[which]]
+      if (el) el.scrollBy({ left: direction * 340, behavior: 'smooth' })
     }
   }
 }

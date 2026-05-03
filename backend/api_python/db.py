@@ -1,24 +1,31 @@
-import pyodbc
+import os
+import psycopg2
+
+# Variables de entorno
+PG_HOST = os.getenv("PG_HOST", "127.0.0.1")
+PG_PORT = int(os.getenv("PG_PORT", "5432"))
+PG_DB = os.getenv("PG_DB", "PrendeteRock")
+PG_USER = os.getenv("PG_USER", "postgres")
+PG_PASSWORD = os.getenv("PG_PASSWORD", "Pasteldepapas123#")
+
 
 def get_connection():
-    """Conecta a SQL Server usando Trusted Connection (autenticación de Windows)"""
     try:
-        conn = pyodbc.connect(
-            'DRIVER={ODBC Driver 17 for SQL Server};'
-            'SERVER=.\SQLEXPRESS01;'
-            'DATABASE=PrendeteRock;'
-            'Trusted_Connection=yes;'
+        conn = psycopg2.connect(
+            host=PG_HOST,
+            port=PG_PORT,
+            dbname=PG_DB,
+            user=PG_USER,
+            password=PG_PASSWORD,
+            connect_timeout=5,
+            sslmode="disable"
         )
         return conn
+
     except Exception as e:
-        # Si falla, intentar con localhost
-        try:
-            conn = pyodbc.connect(
-                'DRIVER={ODBC Driver 17 for SQL Server};'
-                'SERVER=localhost\\SQLEXPRESS01;'
-                'DATABASE=PrendeteRock;'
-                'Trusted_Connection=yes;'
-            )
-            return conn
-        except:
-            raise RuntimeError(f'No se pudo conectar a SQL Server SQLEXPRESS01. Verifica que el servidor esté corriendo y la BD PrendeteRock existe. Error: {e}')
+        print("❌ ERROR CONEXION DB:")
+        print(f"Host: {PG_HOST}:{PG_PORT}")
+        print(f"DB: {PG_DB}")
+        print(f"User: {PG_USER}")
+        print("Detalle:", str(e))
+        raise

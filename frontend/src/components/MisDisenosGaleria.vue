@@ -104,7 +104,7 @@
           <div class="diseno-thumbnail">
             <img 
               v-if="diseno.ruta_thumbnail"
-              :src="`http://localhost:8000/${diseno.ruta_thumbnail}`" 
+              :src="`${BASE_URL}/${diseno.ruta_thumbnail}`" 
               :alt="diseno.nombre_original"
               @error="handleImageError"
             />
@@ -161,7 +161,7 @@
             <div class="modal-image-container">
               <img 
                 v-if="disenoSeleccionado.ruta_archivo"
-                :src="`http://localhost:8000/${disenoSeleccionado.ruta_archivo}`"
+                :src="`${BASE_URL}/${disenoSeleccionado.ruta_archivo}`"
                 :alt="disenoSeleccionado.nombre_original"
                 @error="handleImageError"
               />
@@ -233,6 +233,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useApi } from '../composables/useApi.js'
+
+const { get } = useApi()
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 // Props
 const props = defineProps({
@@ -280,26 +284,16 @@ async function cargarDisenos() {
   try {
     console.log(`🔄 Cargando diseños del usuario ${props.userId}...`)
     
-    const response = await fetch(`http://localhost:8000/api/mis-disenos/${props.userId}`)
+    const result = await get(`/mis-disenos/${props.userId}`)
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+    disenos.value = result.disenos || []
+    estadisticas.value = {
+      total: result.total || 0,
+      total_generados_ia: result.total_generados_ia || 0,
+      total_subidos: result.total_subidos || 0
     }
     
-    const result = await response.json()
-    
-    if (result.success && result.data) {
-      disenos.value = result.data.disenos || []
-      estadisticas.value = {
-        total: result.data.total || 0,
-        total_generados_ia: result.data.total_generados_ia || 0,
-        total_subidos: result.data.total_subidos || 0
-      }
-      
-      console.log(`✅ ${disenos.value.length} diseños cargados`)
-    } else {
-      throw new Error('Respuesta inválida del servidor')
-    }
+    console.log(`✅ ${disenos.value.length} diseños cargados`)
   } catch (err) {
     console.error('❌ Error cargando diseños:', err)
     error.value = err.message
@@ -323,7 +317,7 @@ function usarDiseno() {
   
   // Emitir evento con la URL del diseño
   emit('design-selected', {
-    imagen_url: `http://localhost:8000/${disenoSeleccionado.value.ruta_archivo}`,
+    imagen_url: `${BASE_URL}/${disenoSeleccionado.value.ruta_archivo}`,
     prompt: disenoSeleccionado.value.prompt_usado || 'Diseño reutilizado',
     id_archivo: disenoSeleccionado.value.id_archivo
   })

@@ -11,7 +11,7 @@ onMounted(async () => {
   status.value = params.get("status");
 
   if (status.value === "approved") {
-    await fetch("http://ai-print-studio.local/backend/api/save-payment.php", {
+    await fetch("http://localhost:8000/api/save-payment", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

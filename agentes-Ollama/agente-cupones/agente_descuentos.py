@@ -1,4 +1,5 @@
-import pyodbc
+import psycopg2
+import os
 from datetime import datetime
 from typing import Dict, List, Optional
 import json
@@ -6,20 +7,23 @@ import json
 class AgenteDescuentos:
     """
     Agente híbrido para gestión de descuentos
-    Combina SQL Server para reglas + Ollama para validaciones complejas
+    Combina PostgreSQL para reglas + Ollama para validaciones complejas
     """
     
     def __init__(self):
         self.max_descuento = 35  # Descuento máximo permitido (%)
 
     def get_db_connection(self):
-        """Conectar a SQL Server"""
+        """Conectar a PostgreSQL"""
         try:
-            conn = pyodbc.connect(
-                'DRIVER={ODBC Driver 17 for SQL Server};'
-                'SERVER=.\\SQLEXPRESS01;'
-                'DATABASE=PrendeteRock;'
-                'Trusted_Connection=yes;'
+            conn = psycopg2.connect(
+                host=os.getenv("PG_HOST", "127.0.0.1"),
+                port=int(os.getenv("PG_PORT", "5432")),
+                dbname=os.getenv("PG_DB", "PrendeteRock"),
+                user=os.getenv("PG_USER", "postgres"),
+                password=os.getenv("PG_PASSWORD", ""),
+                connect_timeout=5,
+                sslmode="disable"
             )
             return conn
         except Exception as e:
@@ -120,7 +124,7 @@ class AgenteDescuentos:
             query = """
                 SELECT COUNT(*) as total_pedidos
                 FROM Pedidos
-                WHERE id_cliente = ?
+                WHERE id_cliente = %s
                 AND estado = 'completado'
             """
             cursor.execute(query, (id_cliente,))
@@ -156,7 +160,7 @@ class AgenteDescuentos:
                 SELECT id_cupon, codigo, descuento_porcentaje, usos_maximos, 
                        usos_actuales, fecha_expiracion, activo, descripcion
                 FROM Cupones
-                WHERE codigo = ?
+                WHERE codigo = %s
             """
             cursor.execute(query, (codigo.upper(),))
             result = cursor.fetchone()
@@ -198,7 +202,7 @@ class AgenteDescuentos:
             query = """
                 UPDATE Cupones
                 SET usos_actuales = usos_actuales + 1
-                WHERE id_cupon = ?
+                WHERE id_cupon = %s
             """
             cursor.execute(query, (cupon_id,))
             conn.commit()
@@ -215,7 +219,7 @@ class AgenteDescuentos:
                 SELECT tipo, nombre, descripcion, porcentaje
                 FROM Descuentos
                 WHERE activo = 1
-                AND GETDATE() BETWEEN fecha_inicio AND fecha_fin
+                AND NOW() BETWEEN fecha_inicio AND fecha_fin
             """
             cursor.execute(query)
             
@@ -269,7 +273,7 @@ class AgenteDescuentos:
                 SELECT codigo, descuento_porcentaje, usos_maximos, 
                        usos_actuales, fecha_expiracion, activo, descripcion
                 FROM Cupones
-                WHERE codigo = ?
+                WHERE codigo = %s
             """
             cursor.execute(query, (codigo.upper(),))
             result = cursor.fetchone()
@@ -342,7 +346,7 @@ class AgenteDescuentos:
                 query = """
                     SELECT * FROM Cupones 
                     WHERE activo = 1 
-                    AND (fecha_expiracion IS NULL OR fecha_expiracion > GETDATE())
+                    AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
                     ORDER BY fecha_creacion DESC
                 """
             
@@ -383,7 +387,7 @@ class AgenteDescuentos:
             cursor = conn.cursor()
             
             # Verificar que el código no exista
-            cursor.execute("SELECT id_cupon FROM Cupones WHERE codigo = ?", cupon['codigo'])
+            cursor.execute("SELECT id_cupon FROM Cupones WHERE codigo = %s", (cupon['codigo'],))
             if cursor.fetchone():
                 return {
                     'success': False,
@@ -395,7 +399,7 @@ class AgenteDescuentos:
                 INSERT INTO Cupones 
                 (codigo, descripcion, descuento_porcentaje, usos_maximos, 
                  usos_actuales, fecha_expiracion, activo, fecha_creacion)
-                VALUES (?, ?, ?, ?, 0, ?, 1, GETDATE())
+                VALUES (%s, %s, %s, %s, 0, %s, TRUE, NOW())
             """
             
             cursor.execute(query, 
@@ -433,30 +437,30 @@ class AgenteDescuentos:
             valores = []
             
             if 'descripcion' in datos:
-                campos.append("descripcion = ?")
+                campos.append("descripcion = %s")
                 valores.append(datos['descripcion'])
             
             if 'descuento_porcentaje' in datos:
-                campos.append("descuento_porcentaje = ?")
+                campos.append("descuento_porcentaje = %s")
                 valores.append(datos['descuento_porcentaje'])
             
             if 'usos_maximos' in datos:
-                campos.append("usos_maximos = ?")
+                campos.append("usos_maximos = %s")
                 valores.append(datos['usos_maximos'])
             
             if 'fecha_expiracion' in datos:
-                campos.append("fecha_expiracion = ?")
+                campos.append("fecha_expiracion = %s")
                 valores.append(datos['fecha_expiracion'])
             
             if 'activo' in datos:
-                campos.append("activo = ?")
+                campos.append("activo = %s")
                 valores.append(datos['activo'])
             
             if not campos:
                 return {'success': False, 'mensaje': 'No hay datos para actualizar'}
             
-            query = f"UPDATE Cupones SET {', '.join(campos)} WHERE id_cupon = ?"
-            valores.append(id_cupon)
+            query = f"UPDATE Cupones SET {', '.join(campos)} WHERE id_cupon = %s"
+            valores.append(id_cupon,)
             
             cursor.execute(query, *valores)
             conn.commit()
@@ -482,10 +486,10 @@ class AgenteDescuentos:
             
             if soft_delete:
                 # Solo desactivar
-                cursor.execute("UPDATE Cupones SET activo = 0 WHERE id_cupon = ?", id_cupon)
+                cursor.execute("UPDATE Cupones SET activo = 0 WHERE id_cupon = %s", (id_cupon,))
             else:
                 # Eliminar permanentemente
-                cursor.execute("DELETE FROM Cupones WHERE id_cupon = ?", id_cupon)
+                cursor.execute("DELETE FROM Cupones WHERE id_cupon = %s", (id_cupon,))
             
             conn.commit()
             
@@ -519,7 +523,7 @@ class AgenteDescuentos:
                     AVG(total) as ticket_promedio,
                     SUM(total) as ingresos_totales
                 FROM Pedidos 
-                WHERE fecha_pedido >= DATEADD(month, -1, GETDATE())
+                WHERE fecha_pedido >= DATEADD(month, -1, NOW())
                 AND estado != 'cancelado' 
             """)
             row = cursor.fetchone()
@@ -540,7 +544,7 @@ class AgenteDescuentos:
                 JOIN Producto_Variantes pv ON dp.id_variante = pv.id_variante
                 JOIN Productos p ON pv.id_producto = p.id_producto
                 JOIN Pedidos ped ON dp.id_pedido = ped.id_pedido
-                WHERE ped.fecha_pedido >= DATEADD(month, -1, GETDATE())
+                WHERE ped.fecha_pedido >= DATEADD(month, -1, NOW())
                 GROUP BY p.nombre
                 ORDER BY cantidad_vendida DESC
             """)
@@ -562,7 +566,7 @@ class AgenteDescuentos:
                 FROM (
                     SELECT id_usuario, COUNT(*) as total_pedidos
                     FROM Pedidos
-                    WHERE fecha_pedido >= DATEADD(month, -1, GETDATE())
+                    WHERE fecha_pedido >= DATEADD(month, -1, NOW())
                     GROUP BY id_usuario
                 ) subq
             """)

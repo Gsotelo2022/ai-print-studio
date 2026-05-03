@@ -5,6 +5,8 @@ frontend/node_modules/
 
 # Python
 .venv/
+venv/
+**/venv/
 backend_fastapi/.venv/
 database/source/.venv/
 

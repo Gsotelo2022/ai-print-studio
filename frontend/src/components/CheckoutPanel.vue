@@ -82,6 +82,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useApi } from '../composables/useApi.js'
 
 const props = defineProps({
   order:     { type: Object, required: true },
@@ -130,18 +131,13 @@ async function pay() {
 
   try {
     // Llamar al backend para crear preferencia en MercadoPago
-    const response = await fetch('http://localhost:8080/api/create-payment.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: props.order.order_id,
-        producto: props.producto.nombre,
-        precio: props.order.precio_total,
-        cantidad: props.order.cantidad
-      })
+    const { createPayment } = useApi()
+    const data = await createPayment({
+      order_id: props.order.order_id,
+      producto: props.producto.nombre,
+      precio: props.order.precio_total,
+      cantidad: props.order.cantidad,
     })
-
-    const data = await response.json()
 
     // Redirigir al usuario a MercadoPago
     // En testing usar sandbox_url, en producción usar init_point
@@ -191,3 +187,226 @@ function formatPrice(price) {
   return new Intl.NumberFormat('es-AR').format(price)
 }
 </script>
+
+<style scoped>
+:root {
+  --color-primary: #06b6d4;
+  --color-primary-dark: #0b7285;
+  --color-surface: #0f1724;
+  --color-text: #e6eef8;
+  --color-text-secondary: #9aa6b2;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-bg: #071226;
+  --color-success: #27ae60;
+  --color-error: #ff6b6b;
+  --color-warning: #f39c12;
+}
+
+.checkout-panel {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+}
+
+.section-title {
+  font-size: 1.8rem;
+  color: var(--color-primary);
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.step-badge {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.checkout-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.order-summary {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.summary-image {
+  flex-shrink: 0;
+}
+
+.summary-thumb {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--color-border);
+}
+
+.summary-details {
+  flex: 1;
+}
+
+.summary-details h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.summary-color,
+.summary-qty {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  margin: 0.25rem 0;
+}
+
+.summary-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.payment-methods {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.payment-label {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.payment-icons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.payment-badge {
+  padding: 0.5rem 1rem;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.btn {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(6, 182, 212, 0.3);
+}
+
+.btn-pay {
+  padding: 1.25rem;
+  font-size: 1.2rem;
+}
+
+.btn-mercadopago {
+  background: linear-gradient(135deg, #009ee3, #007bb6);
+}
+
+.btn-mercadopago:hover:not(:disabled) {
+  background: linear-gradient(135deg, #007bb6, #005f8f);
+}
+
+.btn-whatsapp {
+  background: #25d366;
+  color: white;
+}
+
+.btn-whatsapp:hover {
+  background: #1da851;
+  transform: translateY(-2px);
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.alert-success {
+  background: rgba(39, 174, 96, 0.1);
+  border: 1px solid var(--color-success);
+  color: var(--color-success);
+}
+
+.alert-error {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+}
+
+.alert-warning {
+  background: rgba(243, 156, 18, 0.1);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning);
+}
+
+@media (max-width: 768px) {
+  .checkout-panel {
+    padding: 1.5rem;
+  }
+
+  .summary-item {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .summary-price {
+    font-size: 1.3rem;
+  }
+}
+</style>

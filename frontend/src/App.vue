@@ -16,6 +16,19 @@
           </template>
           
           <!-- Cliente logueado -->
+  
+        <!-- Toast container global -->
+        <div class="toast-root">
+          <transition-group name="toast" tag="div">
+            <div v-for="t in toasts" :key="t.id" :class="['app-toast', t.type]">
+              <span class="toast-icon">{{ t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : '⚠️' }}</span>
+              <div class="toast-body">
+                <div class="toast-msg">{{ t.message }}</div>
+                <button class="toast-close" @click="removeToast(t.id)">✖</button>
+              </div>
+            </div>
+          </transition-group>
+        </div>
           <template v-if="userLogged && userType === 'cliente'">
             <a href="#" @click.prevent="openHome" class="nav-link">Home</a>
             <a href="#" @click.prevent="goToDashboard" class="nav-link">Crear</a>
@@ -43,11 +56,11 @@
 
       <!-- LOGIN -->
       <section v-if="showLoginForm && userType !== 'admin'" class="workflow-section">
-        <Login
-          @login-success="onLoginSuccess"
-          @go-to-register="openRegister"
-          @forgot-password="handleFuserType === 'cliente' && orgotPassword"
-        />
+      <Login
+        @login-success="onLoginSuccess"
+        @go-to-register="openRegister"
+        @forgot-password="handleForgotPassword"
+      />
       </section>
 
       <!-- DASHBOARD USUARIO LOGUEADO: Opciones iniciales (Subir imagen o Generar con IA) -->
@@ -103,25 +116,15 @@
             </div>
           </div>
         </div>
-
-        <!-- marca de agua: se aplica vía CSS ::before para que quede centrada y no se recorte -->
-
-        <!-- Carrusel de Ejemplos -->
-        <div class="examples-section">
-          <div class="example-card" v-for="i in 3" :key="i">
-            <div class="example-placeholder"></div>
-          </div>
-          <button class="carousel-nav next">›</button>
-        </div>
       </section>
 
       <!-- PASO 1B: SUBIR IMAGEN -->
-      <section v-if="userLogged && imageSourceMode === 'upload' && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && imageSourceMode === 'upload' && !generatedImage && userType === 'cliente'" class="workflow-section">
         <ImageUploader @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
       <!-- PASO 1C: GENERAR CON IA -->
-      <section v-if="userLogged && imageSourceMode === 'generate' && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && imageSourceMode === 'generate' && !generatedImage && userType === 'cliente'" class="workflow-section">
         <GenerateImage @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
@@ -155,24 +158,22 @@
         />
       </section>
 
-      <!-- PASO 3: VISTA PREVIA -->
-      <section v-if="userLogged && selectedProduct && !orderData && userType === 'cliente'" class="workflow-section">
-        <PreviewPanel
-          :imagen-url="generatedImage"
-          :producto="selectedProduct"
-          :prompt="lastPrompt"
-          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
-          @confirm-order="onConfirmOrder"
-          @go-back="onPreviewPanelGoBack"
+      <!-- MIS PEDIDOS -->
+      <section v-if="userLogged && showMyOrders && userType === 'cliente' && currentUser" class="workflow-section">
+        <MisPedidos
+          :user-id="currentUser.id_usuario || currentUser.user_id || currentUser.id"
+          @go-back="closeMyOrders"
         />
       </section>
 
-      <!-- PASO 4: CHECKOUT -->
-      <section v-if="userLogged && orderData && userType === 'cliente'" class="workflow-section">
-        <CheckoutPanel
-          :order="orderData"
+      <!-- PASO 4: RESUMEN Y ENVÍO -->
+      <section v-if="userLogged && selectedProduct && userType === 'cliente'" class="workflow-section">
+        <OrderSummary
           :imagen-url="generatedImage"
           :producto="selectedProduct"
+          :user-id="currentUser?.id_usuario || currentUser?.user_id || currentUser?.id"
+          @go-back="onOrderSummaryGoBack"
+          @order-completed="onOrderCompleted"
         />
       </section>
     </main>
@@ -189,252 +190,144 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 
 import ImageUploader from './components/ImageUploader.vue'
 import CreateUser from './components/CreateUser.vue'
 import Login from './components/Login.vue'
 import BackgroundRemover from './components/BackgroundRemover.vue'
-
 import ProductSelector from './components/ProductSelector.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
-import CheckoutPanel from './components/CheckoutPanel.vue'
+import OrderSummary from './components/OrderSummary.vue'
 import GenerateImage from './components/GenerateImage.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
 import MisDisenosGaleria from './components/MisDisenosGaleria.vue'
+import MisPedidos from './components/MisPedidos.vue'
 
-// Estado de autenticación y usuario
-const userLogged = ref(false) // cambiar a true para ver diferentes vistas
-const userType = ref('cliente') // 'cliente' o 'admin'
-const showRegistrationForm = ref(false) // mostrar formulario de registro
-const showLoginForm = ref(false) // mostrar formulario de login
-const showMyDesigns = ref(false) // mostrar galería de diseños
-const showMyOrders = ref(false) // mostrar mis pedidos
-const currentUser = ref(null) // datos del usuario logueado
+import { useApi } from './composables/useApi.js'
+import { useToast } from './composables/useToast.js'
 
-const currentStep = ref(0)
+// ✅ INSTANCIA ÚNICA
+const api = useApi()
+const { toasts, removeToast } = useToast()
 
-const steps = ['Subí tu imagen', 'Elige producto', 'Vista previa', 'Pagar']
+// ============================
+// STATE
+// ============================
 
-const imageSourceMode = ref(null) // null, 'upload', o 'generate'
+const userLogged = ref(false)
+const userType = ref('cliente')
+const showRegistrationForm = ref(false)
+const showLoginForm = ref(false)
+const showMyDesigns = ref(false)
+const showMyOrders = ref(false)
+const currentUser = ref(null)
 
+const imageSourceMode = ref(null)
 const generatedImage = ref(null)
 const lastPrompt = ref('')
-const showBackgroundRemover = ref(false) // mostrar editor de fondo
+const showBackgroundRemover = ref(false)
+
+const uploadedImageMode = ref(false) 
 
 const selectedProduct = ref(null)
-const orderData = ref(null)
 
 // ============================
-// PRODUCTOS - Dinámicos del Agente IA
+// PRODUCTOS
 // ============================
-const productos = reactive({})
-const productosDelAgente = ref([]) // estructura bruta del agente
-const productosLoading = ref(false) // Estado de carga
-const productosLoaded = ref(false)  // Si ya se cargaron
 
-async function cargarProductosDelAgente() {
-  if (productosLoaded.value) {
-    console.log('✓ Productos ya cargados, usando caché')
-    return
-  }
-  
-  productosLoading.value = true
-  console.log('🔄 Cargando productos desde el backend...')
-  try {
-    // CAMBIO: Usar endpoint del backend (puerto 8000) en lugar del agente IA (puerto 5001)
-    // Esto es más confiable porque las variantes ya están en la base de datos
-    const response = await fetch('http://localhost:8000/api/productos')
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    
-    const result = await response.json()
-    
-    // El backend retorna: { success, data: [...] }
-    if (!result.success || !result.data) {
-      throw new Error('Respuesta inválida del backend')
-    }
-    
-    const data = result.data
-    productosDelAgente.value = data
-    
-    // Transformar estructura del backend a estructura de la app
-    // Backend devuelve: [{ id_producto, nombre, variantes: [{ id_variante, atributos: {talle, color} }] }]
-    // App espera: { camiseta: { nombre, talles, colores, variantes: [{ id_variante, talle, color }] } }
-    
-    data.forEach(item => {
-      if (!item?.nombre) return
+//const productos = reactive({})
+const productos = ref([])
+const productosLoading = ref(false)
+const productosLoaded = ref(false)
 
-      const key = item.nombre.toLowerCase()
-      
-      // Extraer talles y colores únicos de las variantes
-      const tallesSet = new Set()
-      const coloresSet = new Set()
-      const variantesSimplificadas = []
-      
-      item.variantes?.forEach(variante => {
-        // Extraer talle del atributo
-        const talle = variante.atributos?.talle?.valor
-        const color = variante.atributos?.color?.valor
-        
-        if (talle) tallesSet.add(talle)
-        if (color) coloresSet.add(color)
-        
-        // Simplificar estructura de variante para ProductSelector
-        variantesSimplificadas.push({
-          id_variante: variante.id_variante,
-          talle: talle || null,
-          color: color || null,
-          precio: variante.precio,
-          stock: variante.stock
-        })
-      })
+// ============================
+// AUTH
+// ============================
+function onImageGenerated(data) {
+  generatedImage.value = data.imagen_url || data.url || data
 
-      productos[key] = {
-        id_producto: item.id_producto,
-        nombre: item.nombre,
-        talles: Array.from(tallesSet).sort(),
-        colores: Array.from(coloresSet).sort(),
-        variantes: variantesSimplificadas,
-        precio: item.precio_desde || 12000,
-        tienesTalle: tallesSet.size > 0
-      }
-    })
-    
-    console.log('✓ Productos cargados desde backend:', Object.keys(productos).length, 'productos')
-    console.log('  Productos:', Object.keys(productos))
-    productosLoaded.value = true
-  } catch (error) {
-    console.log('⚠ Error cargando productos del backend, usando valores por defecto:', error.message)
-    
-    // Fallback: mantener productos hardcodeados si el backend no funciona
-    Object.assign(productos, {
-      camiseta: { nombre: 'Camiseta', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro', 'Gris', 'Azul'], variantes: [], precio: 12000, tienesTalle: true },
-      taza:     { nombre: 'Taza',     talles: [], colores: ['Blanco', 'Negro'], variantes: [], precio: 8000,  tienesTalle: false },
-      sudadera: { nombre: 'Sudadera', talles: ['S', 'M', 'L', 'XL', 'XXL'], colores: ['Blanco', 'Negro'], variantes: [], precio: 18000, tienesTalle: true },
-      cojin:    { nombre: 'Cojín',    talles: [], colores: ['Blanco', 'Negro'], variantes: [], precio: 10000, tienesTalle: false },
-      mochila:  { nombre: 'Mochila',  talles: [], colores: ['Negro', 'Gris', 'Azul'], variantes: [], precio: 15000, tienesTalle: false },
-      gorra:    { nombre: 'Gorra',    talles: [], colores: ['Blanco', 'Negro'], variantes: [], precio: 9000,  tienesTalle: false },
-    })
-    productosLoaded.value = true
-  } finally {
-    productosLoading.value = false
-  }
-}
+  // Si viene de upload, marcamos flag
+  uploadedImageMode.value = true
 
-// FLUJO ANTERIOR: Cargar productos al montar el componente
-// onMounted(() => {
-//   cargarProductosDelAgente()
-// })
-// FLUJO NUEVO: Cargar productos solo después del login (ver onLoginSuccess)
-
-function onImageGenerated({ imagen_url, prompt }) {
-  generatedImage.value = imagen_url
-  lastPrompt.value = prompt
-  imageSourceMode.value = null // cerrar el uploader/generator
-  showBackgroundRemover.value = true // mostrar editor de fondo
-}
-
-function onImageProcessed(processedData) {
-  // El usuario confirmó los cambios en el editor de fondo
-  generatedImage.value = processedData.imagen_url
-  showBackgroundRemover.value = false
-  currentStep.value = 1
-}
-
-function onSkipEditing() {
-  // El usuario continúa sin cambios
-  showBackgroundRemover.value = false
-  currentStep.value = 1
-}
-
-function onBackgroundRemoverGoBack() {
-  // Volver desde BackgroundRemover al inicio (a elegir upload/generate)
-  generatedImage.value = null
-  lastPrompt.value = ''
-  showBackgroundRemover.value = false
-  imageSourceMode.value = null
-}
-
-function onProductSelected(product) {
-  selectedProduct.value = product
-  currentStep.value = 2
-}
-
-function onConfirmOrder(newOrderData) {
-  // PreviewPanel ya creó el pedido en la BD
-  // newOrderData trae: { order_id, producto, precio_total, cantidad, etc }
-  console.log('✅ Pedido confirmado:', newOrderData)
-  
-  // Guardar los datos del pedido en la ref
-  orderData.value = {
-    order_id: newOrderData.order_id,
-    precio_total: newOrderData.precio_total,
-    cantidad: newOrderData.cantidad,
-    producto_nombre: newOrderData.producto
-  }
-  
-  currentStep.value = 4
-}
-
-function onProductSelectorGoBack() {
-  // Volver desde ProductSelector a BackgroundRemover
-  selectedProduct.value = null
+  // Mostrar background remover
   showBackgroundRemover.value = true
+
+  console.log('🖼️ Imagen generada/subida:', generatedImage.value)
 }
 
-function onPreviewPanelGoBack() {
-  // Volver desde PreviewPanel a ProductSelector
-  selectedProduct.value = null
-}
-
-function goBackToChoice() {
+function goToDashboard() {
   imageSourceMode.value = null
+  generatedImage.value = null
+  showBackgroundRemover.value = false
+  selectedProduct.value = null
+
+  // 🔥 ESTO TE FALTABA
+  showMyDesigns.value = false
+  showMyOrders.value = false
+
+  console.log('🏠 Volviendo al dashboard')
 }
 
-function onUserCreated(userData) {
-  console.log('Usuario creado:', userData)
-  // Mostrar mensaje de éxito y pasar al login
-  alert(`¡Bienvenido ${userData.Nombre}! Tu cuenta fue creada exitosamente.\nAhora inicia sesión para continuar.`)
-  showRegistrationForm.value = false
-  showLoginForm.value = true
-}
-
-function handleGoToLogin() {
-  console.log('Ir a login')
-  showRegistrationForm.value = false
-  showLoginForm.value = true
-  // Aquí agregarás la lógica para ir a login cuando lo implementes
-}
-
-function onLoginSuccess(loginData) {
-  console.log('Login exitoso:', loginData)
+function onLoginSuccess(data) {
+  localStorage.setItem('token', data.token)
+  localStorage.setItem('userId', data.user_id)
+  localStorage.setItem('userName', data.nombre)
+  localStorage.setItem('userType', data.tipo)
 
   currentUser.value = {
-    id_usuario: loginData.user_id, // 🔥 FIX
-    nombre: loginData.nombre,
-    email: loginData.email,
-    tipo: loginData.tipo
+    id_usuario: data.user_id,
+    nombre: data.nombre,
+    email: data.email,
+    tipo: data.tipo
   }
 
   userLogged.value = true
-  userType.value = loginData.tipo || 'cliente'
+  userType.value = data.tipo
+
   showLoginForm.value = false
 
-  // Cargar productos después del login
   cargarProductosDelAgente()
-
-  // Al loguearse, ir al home en lugar del dashboard de creación
   openHome()
 }
 
-function handleForgotPassword() {
-  // placeholder: mostrar modal o redirigir a recuperación
-  alert('Funcionalidad de recuperar contraseña aún no implementada')
+function onUserCreated(data) {
+  showRegistrationForm.value = false
+  showLoginForm.value = true
+  console.log('✅ Usuario creado, mostrar login')
 }
 
-function openRegister() {
-  showRegistrationForm.value = true
+function handleGoToLogin() {
+  showRegistrationForm.value = false
+  showLoginForm.value = true
+}
+
+function handleForgotPassword() {
+  console.log('🔐 Recuperar contraseña - función no implementada aún')
+}
+
+function handleLogout() {
+  localStorage.clear()
+
+  userLogged.value = false
+  userType.value = 'cliente'
+  currentUser.value = null
+
+  openHome()
+}
+
+// ============================
+// NAV
+// ============================
+
+function openHome() {
+  imageSourceMode.value = null
+  generatedImage.value = null
+  showBackgroundRemover.value = false
+  selectedProduct.value = null
+  showRegistrationForm.value = false
   showLoginForm.value = false
+  showMyDesigns.value = false
+  showMyOrders.value = false
 }
 
 function openLogin() {
@@ -442,101 +335,158 @@ function openLogin() {
   showRegistrationForm.value = false
 }
 
-function openHome() {
-  // Resetea la vista al home principal, manteniendo al usuario logueado
-  imageSourceMode.value = null
-  generatedImage.value = null
-  lastPrompt.value = ''
-  showBackgroundRemover.value = false
-  selectedProduct.value = null
-  orderData.value = null
-  showRegistrationForm.value = false
+function openRegister() {
+  showRegistrationForm.value = true
   showLoginForm.value = false
-  showMyDesigns.value = false
-  showMyOrders.value = false
-}
-
-function goToMyOrders() {
-  if (!userLogged.value || !currentUser.value) {
-    console.error('❌ Usuario no logueado, redirigiendo al login')
-    openLogin()
-    return
-  }
-  openHome() // Resetea la vista
-  showMyOrders.value = true
-}
-
-function goToDashboard() {
-  if (!userLogged.value || !currentUser.value) {
-    console.error('❌ Usuario no logueado, redirigiendo al login')
-    openLogin()
-    return
-  }
-  openHome()
-  // Forzar la vista de selección de modo (upload/generate)
-  imageSourceMode.value = null // Asegurarse de que no esté en un modo
-  // La condición v-if se encargará de mostrar el dashboard correcto
 }
 
 function goToMyDesigns() {
-  if (!userLogged.value || !currentUser.value) {
-    console.error('❌ Usuario no logueado, redirigiendo al login')
-    openLogin()
-    return
-  }
-  openHome() // Resetea otras vistas
   showMyDesigns.value = true
+  showMyOrders.value = false
+  imageSourceMode.value = null
+  generatedImage.value = null
+  showBackgroundRemover.value = false
+  selectedProduct.value = null
+  console.log('📸 Abriendo Mis Diseños')
 }
 
 function closeMyDesigns() {
   showMyDesigns.value = false
-  openHome()
+  console.log('↩️ Cerrando Mis Diseños')
 }
 
-function onDesignSelected({ imagen_url, prompt, id_archivo }) {
-  console.log('🖼️ Diseño seleccionado desde galería:', { imagen_url, prompt, id_archivo })
-  // Cargar datos del diseño
-  generatedImage.value = imagen_url
-  lastPrompt.value = prompt
-  // Opcional: guardar el id_archivo si es necesario para el pedido
-  
-  // Cerrar galería y avanzar al siguiente paso
+function goToMyOrders() {
+  showMyOrders.value = true
   showMyDesigns.value = false
-  showBackgroundRemover.value = false // Saltar el editor de fondo
-  currentStep.value = 1 // Avanzar a ProductSelector
+  imageSourceMode.value = null
+  generatedImage.value = null
+  showBackgroundRemover.value = false
+  selectedProduct.value = null
+  console.log('📦 Abriendo Mis Pedidos')
 }
 
+function closeMyOrders() {
+  showMyOrders.value = false
+  console.log('↩️ Cerrando Mis Pedidos')
+}
+
+function onDesignSelected(diseno) {
+  generatedImage.value = diseno.ruta_archivo
+  showMyDesigns.value = false
+  showBackgroundRemover.value = false
+  
+  if (!productosLoaded.value) {
+    cargarProductosDelAgente()
+  }
+  
+  console.log('✅ Diseño seleccionado:', diseno)
+}
 
 // ============================
-// INICIALIZACIÓN
+// FLOW
 // ============================
-onMounted(() => {
-  // Comprobar si hay un usuario en localStorage al cargar
-  const savedUser = localStorage.getItem('currentUser')
-  if (savedUser) {
-    try {
-      const userData = JSON.parse(savedUser)
-      // Validar que tenga los campos necesarios
-      if (userData && userData.id_usuario && userData.tipo) {
-        onLoginSuccess(userData)
-      } else {
-        // Datos inválidos, limpiar localStorage
-        console.warn('⚠️ Datos de usuario inválidos en localStorage, limpiando...')
-        localStorage.removeItem('currentUser')
-      }
-    } catch (error) {
-      console.error('❌ Error al parsear usuario desde localStorage:', error)
-      localStorage.removeItem('currentUser')
+
+function onImageProcessed(data) {
+  generatedImage.value = data.imagen_url
+  showBackgroundRemover.value = false
+  uploadedImageMode.value = false
+  
+  console.log('✅ Imagen procesada, mostrar ProductSelector')
+}
+
+// ===== FUNCIÓN NUEVA 1 =====
+function onSkipEditing() {
+  showBackgroundRemover.value = false
+  uploadedImageMode.value = false
+  
+  if (!productosLoaded.value) {
+    cargarProductosDelAgente()
+  }
+  
+  console.log('⏭️ Saltando edición, mostrar ProductSelector')
+}
+
+// ===== FUNCIÓN NUEVA 2 =====
+function onBackgroundRemoverGoBack() {
+  showBackgroundRemover.value = false
+  uploadedImageMode.value = false
+  generatedImage.value = null
+  imageSourceMode.value = null
+  
+  console.log('↩️ Volviendo desde BackgroundRemover')
+}
+
+function onProductSelected(product) {
+  selectedProduct.value = product
+}
+
+// ===== FUNCIÓN NUEVA 3 =====
+function onProductSelectorGoBack() {
+  selectedProduct.value = null
+  generatedImage.value = null
+  uploadedImageMode.value = false
+  imageSourceMode.value = null
+  showBackgroundRemover.value = false
+  
+  console.log('↩️ Volviendo desde ProductSelector')
+}
+
+function onOrderSummaryGoBack() {
+  selectedProduct.value = null
+  console.log('↩️ Volviendo desde OrderSummary')
+}
+
+function onOrderCompleted(order) {
+  // Resetear flujo
+  selectedProduct.value = null
+  generatedImage.value = null
+  imageSourceMode.value = null
+  console.log('✅ Pedido completado:', order)
+}
+
+const cargarProductosDelAgente = async () => {
+  productosLoading.value = true
+  
+  try {
+    const data = await api.get('/productos')
+    if (Array.isArray(data)) {
+      productos.value = data
+      productosLoaded.value = true
+      console.log('✅ Productos cargados:', data.length)
+    } else {
+      console.warn('⚠️ Sin productos disponibles')
     }
+  } catch (error) {
+    console.error('❌ Error cargando productos:', error)
+  } finally {
+    productosLoading.value = false
+  }
+}
+
+onMounted(() => {
+  const token = localStorage.getItem('token')
+  const userId = localStorage.getItem('userId')
+  const userName = localStorage.getItem('userName')
+  const storedUserType = localStorage.getItem('userType')
+
+  if (token && userId) {
+    currentUser.value = {
+      id_usuario: parseInt(userId),
+      nombre: userName,
+      tipo: storedUserType
+    }
+
+    userLogged.value = true
+    userType.value = storedUserType || 'cliente'
+
+    cargarProductosDelAgente()
   }
 })
 
-// Watcher para guardar el estado del usuario en localStorage
-watch(currentUser, (newUser) => {
-  if (newUser && newUser.id_usuario) {
-    localStorage.setItem('currentUser', JSON.stringify(newUser))
-  } else {
-    localStorage.removeItem('currentUser')
+// persist user
+watch(currentUser, (val) => {
+  if (val) {
+    localStorage.setItem('currentUser', JSON.stringify(val))
   }
 })
 

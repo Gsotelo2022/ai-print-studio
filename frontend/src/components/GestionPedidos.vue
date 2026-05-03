@@ -97,12 +97,16 @@
             <!-- Producto -->
             <td>
               <div class="producto-info">
-                <div class="producto-imagen">
+                <div class="producto-imagen" v-if="pedido.imagen_diseno">
+                  <img :src="'/' + pedido.imagen_diseno" alt="Diseño" class="diseno-thumb" />
+                </div>
+                <div class="producto-imagen" v-else>
                   <span>{{ pedido.producto?.emoji || '📦' }}</span>
                 </div>
                 <div class="producto-datos">
                   <p class="producto-nombre">{{ pedido.producto?.nombre || 'Sin producto' }}</p>
                   <p class="producto-detalles">{{ pedido.producto?.detalles || 'Sin detalles' }}</p>
+                  <p class="producto-nota" v-if="pedido.notas_cliente">📝 {{ pedido.notas_cliente }}</p>
                 </div>
               </div>
             </td>
@@ -618,6 +622,24 @@ const masOpciones = (pedido) => {
   font-size: 0.7rem;
   color: var(--color-text-secondary);
   margin: 0;
+}
+
+.producto-nota {
+  font-size: 0.7rem;
+  color: var(--color-primary);
+  margin: 2px 0 0;
+  font-style: italic;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diseno-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
 }
 
 .fecha-info {

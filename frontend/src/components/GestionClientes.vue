@@ -10,9 +10,9 @@
           <input type="text" v-model="terminoBusqueda" placeholder="Buscar cliente..." class="search-input">
           <span class="search-icon">🔍</span>
         </div>
-        <button class="btn-exportar">
+        <button class="btn-exportar" @click="exportarCSV">
           <span>⬇️</span>
-          <span>Exportar</span>
+          <span>Exportar CSV</span>
         </button>
         <button @click="cargarClientes" class="btn-recarga">
           <span>🔄</span>
@@ -48,7 +48,15 @@
             <th>Email</th>
             <th>Teléfono</th>
             <th>Pedidos</th>
-            <th>Total gastado</th>
+            <th>
+              Total gastado
+              <button
+                @click="mostrarTotal = !mostrarTotal"
+                :title="mostrarTotal ? 'Ocultar totales' : 'Mostrar totales'"
+                style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);margin-left:4px;"
+              >{{ mostrarTotal ? '👁️' : '🙈' }}</button>
+            </th>
+
             <th>Acciones</th>
           </tr>
         </thead>
@@ -68,11 +76,11 @@
               <span class="badge-numero">{{ cliente.pedidos }}</span>
             </td>
             <td>
-              <span class="cliente-total">{{ formatearMoneda(cliente.totalGastado) }}</span>
+              <span v-if="mostrarTotal" class="cliente-total">{{ formatearMoneda(cliente.totalGastado) }}</span>
+              <span v-else class="cliente-total" style="filter: blur(4px); user-select: none;">••••••</span>
             </td>
             <td>
               <div class="acciones">
-                <button class="btn-accion" title="Ver detalle">👁️</button>
                 <button @click="abrirModalEdicion(cliente)" class="btn-accion" title="Editar">✏️</button>
               </div>
             </td>
@@ -94,6 +102,9 @@
 import { ref, onMounted, computed } from 'vue'
 import EditClienteModal from './EditClienteModal.vue'
 import { useApi } from '../composables/useApi.js'
+import { useToast } from '../composables/useToast.js'
+
+const { success, error: toastError } = useToast()
 
 const { get, put } = useApi()
 
@@ -140,12 +151,11 @@ const guardarCambiosCliente = async (clienteEditado) => {
     await put(`/admin/clientes/${clienteEditado.id}`, datosActualizacion)
 
     await cargarClientes()
-    console.log('✅ Cliente actualizado con éxito')
-    alert('Cliente actualizado correctamente')
+    success('Cliente actualizado correctamente')
 
   } catch (err) {
     console.error('❌ Error al guardar cambios:', err)
-    alert('Error al actualizar el cliente: ' + err.message)
+    toastError('Error al actualizar el cliente: ' + (err.message || ''))
   }
 
   cerrarModalEdicion()
@@ -181,6 +191,32 @@ const formatearMoneda = (valor) => {
     minimumFractionDigits: 0
   }).format(valor)
 }
+/*Exportacion*/ 
+function exportarCSV() {
+  if (!clientes.value.length) return
+
+  const headers = ['ID', 'Nombre', 'Email', 'Telefono', 'Pedidos', 'Total Gastado']
+  const rows = clientes.value.map(c => [
+    c.id,
+    `"${(c.nombre || '').replace(/"/g, '""')}"`,
+    `"${(c.email || '').replace(/"/g, '""')}"`,
+    `"${(c.telefono || '').replace(/"/g, '""')}"`,
+    c.pedidos || 0,
+    c.totalGastado || 0
+  ])
+
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `clientes_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const mostrarTotal = ref(true)
+
 </script>
 
 <style scoped>

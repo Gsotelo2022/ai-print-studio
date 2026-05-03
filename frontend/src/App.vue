@@ -16,6 +16,19 @@
           </template>
           
           <!-- Cliente logueado -->
+  
+        <!-- Toast container global -->
+        <div class="toast-root">
+          <transition-group name="toast" tag="div">
+            <div v-for="t in toasts" :key="t.id" :class="['app-toast', t.type]">
+              <span class="toast-icon">{{ t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : '⚠️' }}</span>
+              <div class="toast-body">
+                <div class="toast-msg">{{ t.message }}</div>
+                <button class="toast-close" @click="removeToast(t.id)">✖</button>
+              </div>
+            </div>
+          </transition-group>
+        </div>
           <template v-if="userLogged && userType === 'cliente'">
             <a href="#" @click.prevent="openHome" class="nav-link">Home</a>
             <a href="#" @click.prevent="goToDashboard" class="nav-link">Crear</a>
@@ -106,12 +119,12 @@
       </section>
 
       <!-- PASO 1B: SUBIR IMAGEN -->
-      <section v-if="userLogged && imageSourceMode === 'upload' && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && imageSourceMode === 'upload' && !generatedImage && userType === 'cliente'" class="workflow-section">
         <ImageUploader @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
       <!-- PASO 1C: GENERAR CON IA -->
-      <section v-if="userLogged && imageSourceMode === 'generate' && userType === 'cliente'" class="workflow-section">
+      <section v-if="userLogged && imageSourceMode === 'generate' && !generatedImage && userType === 'cliente'" class="workflow-section">
         <GenerateImage @image-generated="onImageGenerated" @go-back="goToDashboard" />
       </section>
 
@@ -191,9 +204,11 @@ import MisDisenosGaleria from './components/MisDisenosGaleria.vue'
 import MisPedidos from './components/MisPedidos.vue'
 
 import { useApi } from './composables/useApi.js'
+import { useToast } from './composables/useToast.js'
 
 // ✅ INSTANCIA ÚNICA
 const api = useApi()
+const { toasts, removeToast } = useToast()
 
 // ============================
 // STATE

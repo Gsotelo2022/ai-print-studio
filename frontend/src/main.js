@@ -7,7 +7,10 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import './assets/styles.css'
+import { useToast } from './composables/useToast.js'
 
-// createApp(App) → crea una instancia de la app con App.vue como raíz
-// .mount('#app') → la inyecta en el HTML dentro de <div id="app">
+// Inicializar toasts globalmente y sobreescribir window.alert
+const { showToast } = useToast()
+window.alert = (msg) => showToast(msg, 'important')
+
 createApp(App).mount('#app')

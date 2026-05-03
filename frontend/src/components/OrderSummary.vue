@@ -69,7 +69,20 @@
         </div>
 
         <!-- Acciones -->
-        <div class="actions-section">
+        
+        <!-- Confirmación del pedido -->
+        <div v-if="!pedidoConfirmado" class="confirm-section">
+          <button
+            @click="confirmarPedido"
+            class="btn-action btn-confirm"
+            :disabled="confirmando"
+          >
+            <span class="btn-icon">{{ confirmando ? '⏳' : '✅' }}</span>
+            {{ confirmando ? 'Confirmando...' : 'Confirmar pedido' }}
+          </button>
+        </div>
+
+        <div v-if="pedidoConfirmado" class="actions-section">
           <button @click="enviarWhatsApp" class="btn-action btn-whatsapp">
             <span class="btn-icon">📱</span>
             Enviar pedido por WhatsApp
@@ -92,6 +105,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useApi } from '../composables/useApi.js'
+import { useToast } from '../composables/useToast.js'
 import CuponesDisponibles from './CuponesDisponibles.vue'
 
 const props = defineProps({
@@ -103,9 +117,14 @@ const props = defineProps({
 const emit = defineEmits(['go-back', 'order-completed'])
 
 const api = useApi()
+const { success, error: toastError, important } = useToast()
+
 const descripcion = ref('')
 const cuponAplicado = ref(null)
 const enviando = ref(false)
+const confirmando = ref(false)
+const pedidoConfirmado = ref(false)
+const ordenCreada = ref(null)   // guarda el pedido creado al confirmar
 
 const WHATSAPP_NUMERO = '5491134696400'
 
@@ -122,27 +141,44 @@ const totalConDescuento = computed(() => {
 function onCuponAplicado(c) { cuponAplicado.value = c }
 function onCuponRemovido() { cuponAplicado.value = null }
 
-// Crear pedido en backend
-async function crearPedidoEnBackend() {
-  const payload = {
-    user_id: props.userId,
-    items: [{
-      id_variante: props.producto.id_variante,
-      cantidad: props.producto.cantidad,
-      archivo_diseno: props.imagenUrl,
-      descripcion_estampado: descripcion.value
-    }],
-    codigo_cupon: cuponAplicado.value?.codigo || null
+// ── CONFIRMAR PEDIDO (crea en BD) ──────────────────────────
+async function confirmarPedido() {
+  if (!props.producto?.id_variante) {
+    toastError('No se encontró la variante del producto. Volvé atrás y seleccioná el producto nuevamente.')
+    return
   }
 
-  return await api.createOrder(payload)
+  confirmando.value = true
+
+  try {
+    const payload = {
+      user_id: props.userId,
+      items: [{
+        id_variante: props.producto.id_variante,
+        cantidad: props.producto.cantidad,
+        archivo_diseno: props.imagenUrl,
+        descripcion_estampado: descripcion.value
+      }],
+      codigo_cupon: cuponAplicado.value?.codigo || null
+    }
+
+    ordenCreada.value = await api.createOrder(payload)
+    pedidoConfirmado.value = true
+    success('¡Pedido confirmado! Ahora podés enviarlo por WhatsApp o pagar.')
+
+  } catch (err) {
+    toastError('Error al confirmar el pedido: ' + err.message)
+  } finally {
+    confirmando.value = false
+  }
 }
 
-// Construir mensaje de WhatsApp
-function buildWhatsAppMessage(orderId) {
+// ── CONSTRUIR MENSAJE WHATSAPP ─────────────────────────────
+function buildWhatsAppMessage() {
+  const orderId = ordenCreada.value?.order_id || ordenCreada.value?.id_pedido || 'NUEVO'
   const talle = props.producto.talle ? `Talle: ${props.producto.talle}` : ''
   const color = props.producto.color ? `Color: ${props.producto.color}` : ''
-  const precio = cuponAplicado.value 
+  const precio = cuponAplicado.value
     ? `$${formatPrice(totalConDescuento.value)} (descuento ${cuponAplicado.value.descuento}%)`
     : `$${formatPrice(props.producto.precioTotal)}`
 
@@ -160,49 +196,38 @@ function buildWhatsAppMessage(orderId) {
   return msg
 }
 
-// Enviar solo por WhatsApp
+// ── ENVIAR POR WHATSAPP ────────────────────────────────────
 async function enviarWhatsApp() {
-  if (enviando.value) return
+  if (enviando.value || !ordenCreada.value) return
   enviando.value = true
 
   try {
-    const order = await crearPedidoEnBackend()
-    const orderId = order.order_id || order.id_pedido || 'NUEVO'
-    const msg = buildWhatsAppMessage(orderId)
-
-    // Copiar al portapapeles
+    const msg = buildWhatsAppMessage()
     await navigator.clipboard.writeText(msg).catch(() => {})
-
-    // Abrir WhatsApp
     const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(msg)}`
     window.open(url, '_blank')
-
-    alert('📋 Mensaje copiado. Se abrirá WhatsApp.\n\n1. Pega el mensaje\n2. Adjunta la imagen del diseño\n3. Envía')
-
-    emit('order-completed', order)
+    success('Mensaje copiado. Se abrirá WhatsApp. Pegá el mensaje, adjuntá la imagen y enviá.')
+    emit('order-completed', ordenCreada.value)
   } catch (err) {
-    alert('❌ Error al crear pedido: ' + err.message)
+    toastError('Error al abrir WhatsApp: ' + err.message)
   } finally {
     enviando.value = false
   }
 }
 
-// Enviar por WhatsApp + Pagar por MP
+// ── ENVIAR POR WHATSAPP + PAGAR ────────────────────────────
 async function enviarWhatsAppYPagar() {
-  if (enviando.value) return
+  if (enviando.value || !ordenCreada.value) return
   enviando.value = true
 
   try {
-    const order = await crearPedidoEnBackend()
-    const orderId = order.order_id || order.id_pedido || 'NUEVO'
-    const msg = buildWhatsAppMessage(orderId)
+    const msg = buildWhatsAppMessage()
+    const orderId = ordenCreada.value?.order_id || ordenCreada.value?.id_pedido
 
-    // Abrir WhatsApp primero
     await navigator.clipboard.writeText(msg).catch(() => {})
     const waUrl = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(msg)}`
     window.open(waUrl, '_blank')
 
-    // Crear pago en MercadoPago
     const paymentData = await api.createPayment({
       order_id: orderId,
       producto: props.producto.nombre,
@@ -212,17 +237,14 @@ async function enviarWhatsAppYPagar() {
 
     const payUrl = paymentData.sandbox_url || paymentData.payment_url || paymentData.init_point
     if (payUrl) {
-      // Dar tiempo a que abra WhatsApp, luego redirigir a MP
-      setTimeout(() => {
-        window.location.href = payUrl
-      }, 2000)
+      setTimeout(() => { window.location.href = payUrl }, 2000)
     } else {
-      alert('⚠️ Pedido enviado por WhatsApp pero no se pudo generar el link de pago. Contacta al vendedor.')
+      important('Pedido enviado por WhatsApp pero no se pudo generar el link de pago. Contactá al vendedor.')
     }
 
-    emit('order-completed', order)
+    emit('order-completed', ordenCreada.value)
   } catch (err) {
-    alert('❌ Error: ' + err.message)
+    toastError('Error: ' + err.message)
   } finally {
     enviando.value = false
   }

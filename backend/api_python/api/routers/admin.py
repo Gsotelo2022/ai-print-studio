@@ -492,15 +492,21 @@ def admin_get_productos(user: dict = Depends(require_admin)):
         cur  = conn.cursor()
 
         cur.execute("""
-            SELECT id_producto, nombre, descripcion, categoria, imagen_mockup,
-                   area_impresion_ancho, area_impresion_alto
-            FROM productos WHERE activo = true
-            ORDER BY orden_visualizacion, nombre
+            SELECT p.id_producto, p.nombre, p.descripcion, p.categoria, p.imagen_mockup,
+                   p.area_impresion_ancho, p.area_impresion_alto,
+                   MIN(pv.precio) AS precio_desde
+            FROM productos p
+            LEFT JOIN producto_variantes pv ON pv.id_producto = p.id_producto AND pv.activo = true
+            WHERE p.activo = true
+            GROUP BY p.id_producto, p.nombre, p.descripcion, p.categoria,
+                     p.imagen_mockup, p.area_impresion_ancho, p.area_impresion_alto
+            ORDER BY p.orden_visualizacion, p.nombre
         """)
 
         productos = [
             {"id_producto": r[0], "nombre": r[1], "descripcion": r[2], "categoria": r[3],
-             "imagen_mockup": r[4], "area_impresion": {"ancho": r[5], "alto": r[6]}}
+             "imagen_mockup": r[4], "area_impresion": {"ancho": r[5], "alto": r[6]},
+             "precio_desde": float(r[7]) if r[7] is not None else 0}
             for r in cur.fetchall()
         ]
 

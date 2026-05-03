@@ -2,7 +2,7 @@
   <div class="gestion-productos">
 
     <!-- HEADER -->
-    <div class="view-header">
+    <!-- <div class="view-header">
       <div>
         <h1>👕 Gestión de productos</h1>
         <p>Administra el catálogo</p>
@@ -10,8 +10,21 @@
       <button class="btn" @click="abrirModalNuevo">
         ➕ Nuevo producto
       </button>
+    </div> -->
+    <div class="view-header">
+      <div>
+        <h1>👕 Gestión de productos</h1>
+        <p>Administra el catálogo</p>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-export" @click="exportarCSV">
+          ⬇️ Exportar CSV
+        </button>
+        <button class="btn" @click="abrirModalNuevo">
+          ➕ Nuevo producto
+        </button>
+      </div>
     </div>
-
     <!-- BUSCADOR -->
     <div class="search-container">
       <input
@@ -68,7 +81,7 @@
     </div>
 
     <!-- MODAL NUEVO -->
-    <div v-if="mostrarModalNuevo" class="modal" @click.self="cerrarModalNuevo">
+    <!-- <div v-if="mostrarModalNuevo" class="modal" @click.self="cerrarModalNuevo">
       <div class="modal-box">
 
         <h2>➕ Nuevo producto</h2>
@@ -81,6 +94,37 @@
         <div class="acciones">
           <button @click="crearProducto">Crear</button>
           <button @click="cerrarModalNuevo">Cancelar</button>
+        </div>
+
+      </div>
+    </div> -->
+
+    <div v-if="mostrarModalNuevo" class="modal-overlay" @click.self="cerrarModalNuevo">
+      <div class="modal-container">
+
+        <div class="modal-header">
+          <h2>➕ Nuevo producto</h2>
+          <button @click="cerrarModalNuevo" class="btn-cerrar">×</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-grupo">
+            <label for="prod-nombre">Nombre</label>
+            <input type="text" id="prod-nombre" v-model="nuevoProducto.nombre" placeholder="Ej: Remera básica" />
+          </div>
+          <div class="form-grupo">
+            <label for="prod-descripcion">Descripción</label>
+            <input type="text" id="prod-descripcion" v-model="nuevoProducto.descripcion" placeholder="Descripción del producto" />
+          </div>
+          <div class="form-grupo">
+            <label for="prod-imagen">Imagen (opcional)</label>
+            <input type="file" id="prod-imagen" accept="image/*" @change="handleFileChange" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancelar" @click="cerrarModalNuevo">Cancelar</button>
+          <button class="btn-guardar" @click="crearProducto">Crear producto</button>
         </div>
 
       </div>
@@ -177,7 +221,7 @@ async function confirmarEdicion(producto) {
   const nuevo = Number(precioTemporal.value)
 
   if (!nuevo || nuevo <= 0) {
-    alert('Precio inválido')
+    toastError('Precio inválido')
     return
   }
 
@@ -185,8 +229,9 @@ async function confirmarEdicion(producto) {
     await put(`/admin/productos/${producto.id_producto}/precio`, { precio: nuevo })
     producto.precio = nuevo
     cancelarEdicion()
+    success('Precio actualizado correctamente')
   } catch (e) {
-    alert('Error actualizando precio: ' + (e.message || ''))
+    toastError('Error actualizando precio: ' + (e.message || ''))
   }
 }
 
@@ -202,7 +247,7 @@ async function eliminarProducto(producto) {
       p => p.id_producto !== producto.id_producto
     )
   } catch (e) {
-    alert('Error eliminando: ' + (e.message || ''))
+    toastError('Error eliminando: ' + (e.message || ''))
   }
 }
 
@@ -227,7 +272,7 @@ function handleFileChange(e) {
 
 async function crearProducto() {
   if (!nuevoProducto.value.nombre) {
-    alert('Nombre requerido')
+    toastError('Nombre requerido')
     return
   }
 
@@ -243,9 +288,10 @@ async function crearProducto() {
     await post('/admin/productos', formData, true)
     cerrarModalNuevo()
     cargarProductos()
+    success('Producto creado correctamente')
 
   } catch (e) {
-    alert('Error creando producto: ' + (e.message || ''))
+    toastError('Error creando producto: ' + (e.message || ''))
   }
 }
 
@@ -259,6 +305,33 @@ function formatearMoneda(valor) {
     minimumFractionDigits: 0
   }).format(valor || 0)
 }
+/* =========================
+   EXPORTACION
+========================= */
+
+function exportarCSV() {
+  if (!productos.value.length) return
+
+  const headers = ['ID', 'Nombre', 'Descripcion', 'Precio']
+  const rows = productos.value.map(p => [
+    p.id_producto,
+    `"${(p.nombre || '').replace(/"/g, '""')}"`,
+    `"${(p.descripcion || '').replace(/"/g, '""')}"`,
+    p.precio
+  ])
+
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `productos_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+import { useToast } from '../composables/useToast.js'
+const { success, error: toastError, important } = useToast()
+
 </script>
 
 <style scoped>
@@ -425,7 +498,7 @@ function formatearMoneda(valor) {
 }
 
 /* MODAL */
-.modal {
+/* .modal {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
@@ -443,7 +516,113 @@ function formatearMoneda(valor) {
   width: 380px;
   max-width: 90vw;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+} */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
 }
+
+.modal-container {
+  background: var(--color-surface);
+  border-radius: var(--radius, 8px);
+  width: 500px;
+  max-width: 90vw;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--color-text);
+}
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+
+.modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-grupo label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.form-grupo input[type="text"],
+.form-grupo input[type="file"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius, 8px);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-grupo input[type="text"]:focus {
+  border-color: var(--color-primary);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.btn-cancelar {
+  padding: 10px 20px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-guardar {
+  padding: 10px 20px;
+  border-radius: var(--radius-sm, 6px);
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
 
 .modal-box h2 {
   margin: 0 0 20px;
@@ -491,5 +670,20 @@ function formatearMoneda(valor) {
   background: var(--color-primary);
   color: white;
   border-color: var(--color-primary);
+}
+/*Exportacion*/
+.btn-export {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius, 8px);
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-export:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 </style>

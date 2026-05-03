@@ -26,16 +26,16 @@ router = APIRouter(prefix="/api", tags=["pedidos"])
 # ============================================================
 # CREAR PEDIDO
 # ============================================================
-
 @router.post("/create-order")
 def create_order(payload: dict, user: dict = Depends(get_current_user)):
     """Crear pedido con uno o más ítems. Requiere autenticación."""
     conn = None
-    cur = None
+    cur  = None
 
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        conn.autocommit = False          # transacción explícita
+        cur  = conn.cursor()
 
         user_id = payload.get("user_id")
         if not user_id:
@@ -49,7 +49,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
         if not items:
             raise HTTPException(status_code=400, detail="items es obligatorio")
 
-        total = 0
+        total      = 0
         items_data = []
 
         for item in items:
@@ -68,7 +68,7 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
 
             row = cur.fetchone()
             if not row:
-                raise HTTPException(status_code=400, detail="Variante no existe")
+                raise HTTPException(status_code=400, detail=f"Variante {id_variante} no existe o está inactiva")
 
             precio, stock, _ = row
             if stock < cantidad:
@@ -78,15 +78,15 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
             total   += subtotal
 
             items_data.append({
-                "id_variante":    id_variante,
-                "cantidad":       cantidad,
-                "precio_unitario":float(precio),
-                "subtotal":       subtotal,
-                "archivo_diseno": item.get("archivo_diseno"),
+                "id_variante":           id_variante,
+                "cantidad":              cantidad,
+                "precio_unitario":       float(precio),
+                "subtotal":              subtotal,
+                "archivo_diseno":        item.get("archivo_diseno"),
                 "descripcion_estampado": item.get("descripcion_estampado", ""),
-                "posicion_x":     item.get("posicion_x", 0),
-                "posicion_y":     item.get("posicion_y", 0),
-                "zoom":           item.get("zoom", 1),
+                "posicion_x":            item.get("posicion_x", 0),
+                "posicion_y":            item.get("posicion_y", 0),
+                "zoom":                  item.get("zoom", 1),
             })
 
         # ── CUPÓN ──────────────────────────────────────────────
@@ -119,16 +119,19 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
 
             cur.execute("UPDATE cupones SET usos_actuales = usos_actuales + 1 WHERE id_cupon = %s", (id_cupon,))
 
-        # ── GUARDAR ARCHIVOS DE DISEÑO ─────────────────────────
+        # ── GUARDAR ARCHIVOS DE DISEÑO (con savepoint por cada uno) ───
         for item in items_data:
             archivo_data = item.get("archivo_diseno")
+            item["id_archivo"] = None
 
             if archivo_data and isinstance(archivo_data, str) and archivo_data.startswith("data:image"):
                 try:
-                    _, encoded = archivo_data.split(",", 1)
+                    cur.execute("SAVEPOINT sp_diseno")
+
+                    _, encoded  = archivo_data.split(",", 1)
                     image_bytes = base64.b64decode(encoded)
 
-                    img = Image.open(io.BytesIO(image_bytes))
+                    img         = Image.open(io.BytesIO(image_bytes))
                     ancho, alto = img.size
                     hash_md5    = hashlib.md5(image_bytes).hexdigest()
                     timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -141,10 +144,10 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
                     img_thumb.thumbnail((200, 200), Image.Resampling.LANCZOS)
                     img_thumb.save(THUMBNAILS_DIR / thumb_nombre)
 
-                    ruta      = f"uploads/designs/{nombre_alm}"
-                    ruta_tmb  = f"uploads/thumbnails/{thumb_nombre}"
-                    prompt    = payload.get("prompt") or payload.get("notas_cliente") or "Diseño personalizado"
-                    es_ia     = 0 if prompt.lower() == "imagen subida por usuario" else 1
+                    ruta     = f"uploads/designs/{nombre_alm}"
+                    ruta_tmb = f"uploads/thumbnails/{thumb_nombre}"
+                    prompt   = payload.get("prompt") or payload.get("notas_cliente") or "Diseño personalizado"
+                    es_ia    = 0 if prompt.lower() == "imagen subida por usuario" else 1
 
                     cur.execute("""
                         INSERT INTO archivos_diseno (
@@ -160,13 +163,15 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
                         hash_md5, es_ia, prompt,
                     ))
                     item["id_archivo"] = cur.fetchone()[0]
+                    cur.execute("RELEASE SAVEPOINT sp_diseno")
+
                 except Exception as e:
-                    print(f"❌ Error guardando diseño: {e}")
+                    print(f"⚠️ Error guardando diseño (no fatal): {e}")
+                    cur.execute("ROLLBACK TO SAVEPOINT sp_diseno")
                     item["id_archivo"] = None
+
             elif isinstance(archivo_data, int):
                 item["id_archivo"] = archivo_data
-            else:
-                item["id_archivo"] = None
 
         # ── INSERTAR PEDIDO ────────────────────────────────────
         cur.execute("SELECT COALESCE(MAX(id_pedido), 0) FROM pedidos")
@@ -207,9 +212,9 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
 
         return json_success({
             "order_id":    id_pedido,
-            "numero_orden":numero_orden,
-            "total":       total,
-            "items_count": len(items_data),
+            "numero_orden": numero_orden,
+            "total":        total,
+            "items_count":  len(items_data),
         })
 
     except HTTPException as e:
@@ -219,13 +224,12 @@ def create_order(payload: dict, user: dict = Depends(get_current_user)):
     except Exception as e:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail={"success": False, "error": str(e)})
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         if cur:
             cur.close()
         if conn:
             conn.close()
-
 
 # ============================================================
 # MIS PEDIDOS (historial del cliente)

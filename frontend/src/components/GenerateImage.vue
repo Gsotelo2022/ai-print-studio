@@ -17,7 +17,7 @@
       ⚠️ {{ error }}
     </div>
     
-    <div v-if="image" class="preview">
+    <!-- <div v-if="image" class="preview">
       <img :src="image" />
       
       <div class="actions">
@@ -29,7 +29,7 @@
           ✂️ Quitar fondo
         </button>
       </div>
-    </div>
+    </div> -->
 
   </div>
 </template>
@@ -57,13 +57,24 @@ async function generate() {
   try {
     const result = await generateImage(prompt.value)
     
+    let url = null
+
     if (result?.imagen_url) {
-      image.value = result.imagen_url
+      url = result.imagen_url
     } else if (result?.imagen) {
-      image.value = result.imagen
+      url = result.imagen
     } else {
       error.value = result?.error || 'Error al generar imagen'
+      return
     }
+
+    image.value = url
+
+    // ✅ 🔥 ESTO ES LO QUE FALTABA
+    emit('image-generated', {
+      imagen_url: url,
+      prompt: prompt.value
+    })
 
   } catch (err) {
     console.error(err)

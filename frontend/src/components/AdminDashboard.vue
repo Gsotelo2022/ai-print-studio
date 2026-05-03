@@ -16,6 +16,25 @@
       </div>
 
       <nav class="sidebar-nav">
+
+        <!-- ✅ NUEVO: BOTÓN COMO PRIMER ITEM -->
+        <a 
+          href="#" 
+          @click.prevent="toggleSidebar"
+          class="sidebar-link toggle-item"
+        >
+          <span class="icon">
+            <span class="toggle-icon">
+              <span class="bar left"></span>
+              <span class="bar right"></span>
+            </span>
+          </span>
+          <span v-if="!isSidebarCollapsed">
+            {{ isSidebarCollapsed ? 'Expandir' : '' }}
+          </span>
+        </a>
+
+        <!-- RESTO IGUAL -->
         <a 
           href="#" 
           @click.prevent="currentView = 'dashboard'"
@@ -66,9 +85,8 @@
         </a>
       </nav>
 
-      <button @click="toggleSidebar" class="sidebar-toggle-btn">
-        <span class="icon">{{ isSidebarCollapsed ? '▶' : '◀' }}</span>
-      </button>
+      <!-- ❌ ELIMINADO -->
+      <!-- <button @click="toggleSidebar" class="sidebar-toggle-btn">...</button> -->
 
       <div class="sidebar-footer">
         <a href="#" @click.prevent="handleLogout" class="sidebar-link logout">
@@ -80,7 +98,6 @@
 
     <!-- Contenido principal -->
     <main class="admin-content">
-      <!-- Header con info del usuario -->
       <header class="admin-header">
         <div class="admin-user-info">
           <div class="user-avatar">
@@ -93,7 +110,6 @@
         </div>
       </header>
 
-      <!-- Vistas dinámicas -->
       <div class="admin-view">
         <GestionCupones
           v-if="currentView === 'cupones'"
@@ -460,5 +476,68 @@ onMounted(() => {
   .admin-view {
     padding: 18px;
   }
+}
+.toggle-icon {
+  display: flex;
+  gap: 3px;
+}
+
+.bar {
+  width: 6px;
+  height: 14px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: all 0.3s ease;
+}
+
+/* Estado colapsado */
+.admin-layout.sidebar-collapsed .bar.left {
+  opacity: 0.4;
+  transform: scaleY(0.8);
+}
+
+.admin-layout.sidebar-collapsed .bar.right {
+  opacity: 1;
+}
+
+/* Estado expandido */
+.admin-layout:not(.sidebar-collapsed) .bar.left {
+  opacity: 1;
+}
+
+.admin-layout:not(.sidebar-collapsed) .bar.right {
+  opacity: 0.4;
+  transform: scaleY(0.8);
+}
+.toggle-icon {
+  display: flex;
+  gap: 3px;
+}
+
+.bar {
+  width: 6px;
+  height: 14px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: all 0.3s ease;
+}
+
+.admin-layout.sidebar-collapsed .bar.left {
+  opacity: 0.4;
+  transform: scaleY(0.8);
+}
+
+.admin-layout.sidebar-collapsed .bar.right {
+  opacity: 1;
+}
+
+.admin-layout:not(.sidebar-collapsed) .bar.right {
+  opacity: 0.4;
+  transform: scaleY(0.8);
+}
+
+.toggle-item {
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 8px;
 }
 </style>

@@ -69,7 +69,8 @@ export function useApi() {
 
     if (response.status === 500) {
       console.error('🔥 ERROR BACKEND:', result)
-      throw new Error(result?.error || 'Error interno del servidor')
+      const backendMsg = result?.detail?.error || result?.detail || result?.error || null
+      throw new Error(backendMsg || 'Error interno del servidor')
     }
 
     throw new Error(result?.detail?.error || result?.error || `Error HTTP ${response.status}`)

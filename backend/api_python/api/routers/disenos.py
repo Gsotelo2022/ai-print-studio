@@ -177,43 +177,45 @@ def get_mis_disenos(id_usuario: int, user: dict = Depends(get_current_user)):
 
 @router.post("/api/generate-image")
 async def generate_image(payload: dict, user: dict = Depends(get_current_user)):
-    """Generar imagen con OpenAI DALL·E. Requiere OPENAI_API_KEY en .env"""
+    """Generar imagen delegando al servidor Node (Replicate/Flux)"""
     import httpx
-    import secrets as _secrets
 
-    prompt_raw = payload.get("prompt", "").strip()
-    if not prompt_raw:
+    prompt = payload.get("prompt", "").strip()
+    if not prompt:
         raise HTTPException(400, {"success": False, "error": "El prompt es requerido"})
 
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(500, {"success": False, "error": "OPENAI_API_KEY no configurada en el servidor"})
-
-    prompt = f"Diseño para estampado en remera, fondo limpio, estilo gráfico profesional: {prompt_raw}"
+    # URL del servidor Node — siempre local, puerto fijo
+    node_url = "http://127.0.0.1:3000"
 
     try:
-        async with httpx.AsyncClient(timeout=90) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
-                "https://api.openai.com/v1/images/generations",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": "gpt-image-1", "prompt": prompt, "size": "1024x1024", "response_format": "b64_json"},
+                f"{node_url}/generar-imagen",
+                json={"prompt": prompt},
             )
 
         if resp.status_code != 200:
-            raise HTTPException(502, {"success": False, "error": f"Error OpenAI HTTP {resp.status_code}"})
+            body = resp.json() if resp.content else {}
+            raise HTTPException(
+                502,
+                {"success": False, "error": body.get("error", f"Error del servidor de imágenes: HTTP {resp.status_code}")}
+            )
 
-        b64 = resp.json().get("data", [{}])[0].get("b64_json")
-        if not b64:
-            raise HTTPException(500, {"success": False, "error": "No se pudo obtener la imagen de OpenAI"})
+        data = resp.json()
+        imagen_url = data.get("imagen")
 
-        img_data = base64.b64decode(b64)
-        filename  = f"img_{int(datetime.now().timestamp())}_{_secrets.token_hex(4)}.png"
-        (IMAGENES_IA_DIR / filename).write_bytes(img_data)
+        if not imagen_url:
+            raise HTTPException(500, {"success": False, "error": "El servidor de imágenes no devolvió una URL"})
 
-        return json_success({"imagen_url": f"/imagenes/{filename}", "prompt": prompt})
+        return json_success({"imagen_url": imagen_url, "prompt": prompt})
 
     except HTTPException:
         raise
+    except httpx.ConnectError:
+        raise HTTPException(
+            503,
+            {"success": False, "error": "No se pudo conectar al servidor de imágenes. ¿Está corriendo el servidor Node en el puerto 3000?"}
+        )
     except Exception as e:
         raise HTTPException(500, {"success": False, "error": str(e)})
 

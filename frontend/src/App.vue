@@ -177,7 +177,7 @@
         />
       </section>
     </main>
-
+    <ChatBot />
     <!-- Footer (oculto para admin) -->
     <footer v-if="userType !== 'admin'" class="app-footer">
       <div class="footer-content">
@@ -187,6 +187,7 @@
       </div>
     </footer>
   </div>
+
 </template>
 
 <script setup>
@@ -202,6 +203,7 @@ import GenerateImage from './components/GenerateImage.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
 import MisDisenosGaleria from './components/MisDisenosGaleria.vue'
 import MisPedidos from './components/MisPedidos.vue'
+import ChatBot from "./components/ChatBot.vue";
 
 import { useApi } from './composables/useApi.js'
 import { useToast } from './composables/useToast.js'

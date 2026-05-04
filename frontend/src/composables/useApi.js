@@ -296,8 +296,12 @@ export function useApi() {
   }
 
   // ============================================
-  // 🚀 EXPORT
+  // 📊 MÉTRICAS
   // ============================================
+  async function getMetricas() {
+    return get('/admin/metricas')
+  }
+
   return {
     loading,
     error,
@@ -330,5 +334,7 @@ export function useApi() {
 
     getCuponesDisponibles,
     getCuponesUsuario,
+
+    getMetricas,
   }
 }

@@ -7,6 +7,81 @@
       <p class="view-description">Gestión de pedidos y ventas</p>
     </div>
 
+    <!-- MÉTRICAS EN TIEMPO REAL -->
+    <div class="metricas-grid" v-if="metricas">
+
+      <div class="metrica-card">
+        <span class="metrica-icon">💰</span>
+        <div class="metrica-datos">
+          <p class="metrica-valor">${{ metricas.hoy.ingresos.toLocaleString('es-AR') }}</p>
+          <p class="metrica-label">Ingresos hoy</p>
+        </div>
+      </div>
+
+      <div class="metrica-card">
+        <span class="metrica-icon">📦</span>
+        <div class="metrica-datos">
+          <p class="metrica-valor">{{ metricas.hoy.pedidos }}</p>
+          <p class="metrica-label">Pedidos hoy</p>
+        </div>
+      </div>
+
+      <div class="metrica-card">
+        <span class="metrica-icon">📅</span>
+        <div class="metrica-datos">
+          <p class="metrica-valor">${{ metricas.mes_actual.ingresos.toLocaleString('es-AR') }}</p>
+          <p class="metrica-label">Ingresos este mes</p>
+        </div>
+      </div>
+
+      <div class="metrica-card">
+        <span class="metrica-icon">👥</span>
+        <div class="metrica-datos">
+          <p class="metrica-valor">{{ metricas.mes_actual.clientes_nuevos }}</p>
+          <p class="metrica-label">Clientes nuevos este mes</p>
+        </div>
+      </div>
+
+      <div class="metrica-card" :class="{ 'alerta': metricas.totales.pendientes > 5 }">
+        <span class="metrica-icon">🔔</span>
+        <div class="metrica-datos">
+          <p class="metrica-valor">{{ metricas.totales.pendientes }}</p>
+          <p class="metrica-label">Pendientes sin atender</p>
+        </div>
+      </div>
+
+      <div class="metrica-card" :class="{ 'alerta': metricas.alertas.checkout_abandonado > 0 }">
+        <span class="metrica-icon">⚠️</span>
+        <div class="metrica-datos">
+          <p class="metrica-valor">{{ metricas.alertas.checkout_abandonado }}</p>
+          <p class="metrica-label">Checkout abandonado (+2hs)</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div v-if="cargandoMetricas" class="metricas-cargando">
+      ⏳ Cargando métricas...
+    </div>
+
+    <!-- TOP PRODUCTOS -->
+    <div class="top-productos" v-if="metricas && metricas.top_productos.length">
+      <h3 class="top-titulo">🏆 Top 5 productos más vendidos</h3>
+      <div class="top-lista">
+        <div
+          v-for="(prod, i) in metricas.top_productos"
+          :key="prod.nombre"
+          class="top-item"
+        >
+          <span class="top-pos">{{ i + 1 }}</span>
+          <span class="top-nombre">{{ prod.nombre }}</span>
+          <span class="top-cant">{{ prod.cantidad_vendida }} uds.</span>
+          <span class="top-ingreso">${{ prod.ingreso_generado.toLocaleString('es-AR') }}</span>
+        </div>
+      </div>
+    </div>
+
+
     <!-- PEDIDOS CON FILTROS -->
     <div class="section pedidos-section">
         <div class="section-header">
@@ -194,6 +269,12 @@ const { get } = useApi()
 const cargandoPedidos = ref(false)
 const errorPedidos = ref(null)
 const pedidos = ref([])
+
+// Métricas
+const metricas = ref(null)
+const cargandoMetricas = ref(false)
+
+
 const filtroActual = ref('todos')
 const filtroNumero = ref('')
 const filtroCliente = ref('')
@@ -328,6 +409,7 @@ const pedidosPaginados = computed(() => {
 // =====================
 // DATA
 // =====================
+
 async function cargarPedidos() {
   cargandoPedidos.value = true
   errorPedidos.value = null
@@ -342,6 +424,18 @@ async function cargarPedidos() {
     console.error('❌ Error cargando pedidos:', e)
   } finally {
     cargandoPedidos.value = false
+  }
+}
+
+async function cargarMetricas() {
+  cargandoMetricas.value = true
+  try {
+    metricas.value = await getMetricas()
+  } catch (e) {
+    console.warn('⚠️ Métricas no disponibles:', e.message)
+    // No bloquea el dashboard si falla
+  } finally {
+    cargandoMetricas.value = false
   }
 }
 
@@ -723,6 +817,7 @@ function abrirModalGraficos() {
 // =====================
 onMounted(() => {
   cargarPedidos()
+  cargarMetricas()
   
   // Cerrar dropdown al hacer clic fuera
   document.addEventListener('click', (e) => {
@@ -1247,4 +1342,119 @@ onMounted(() => {
   box-shadow: 0 6px 12px rgba(99, 102, 241, 0.4);
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
 }
+/* =====================
+   MÉTRICAS
+===================== */
+.metricas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.metrica-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+
+.metrica-card.alerta {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.metrica-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.metrica-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metrica-valor {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.metrica-label {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.metricas-cargando {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+/* =====================
+   TOP PRODUCTOS
+===================== */
+.top-productos {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.top-titulo {
+  margin: 0 0 14px 0;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.top-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.top-item {
+  display: grid;
+  grid-template-columns: 24px 1fr 80px 100px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.top-pos {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-align: center;
+}
+
+.top-nombre {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.top-cant {
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+.top-ingreso {
+  color: #4ade80;
+  font-weight: 600;
+  text-align: right;
+}
+
 </style>

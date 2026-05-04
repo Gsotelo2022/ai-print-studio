@@ -17,3 +17,14 @@ __pycache__/
 # Otros
 .env
 *.log
+
+**/__pycache__/
+*.pyc
+*.pyo
+*.py.backup
+
+backend/uploads/designs/
+backend/uploads/imagenes/
+backend/uploads/thumbnails/
+backend/uploads/no-bg_*
+**/imagenes-generadas-con-IA/

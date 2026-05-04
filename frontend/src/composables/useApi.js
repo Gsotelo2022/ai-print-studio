@@ -284,14 +284,6 @@ export function useApi() {
   async function deleteProducto(id) {
     return del(`/admin/productos/${id}`)
   }
-
-  async function updatePrecioProducto(detalle, precio, nuevoDetalle = null) {
-    return put(`/admin/productos/detalle/${encodeURIComponent(detalle)}/precio`, {
-      precio,
-      nuevo_detalle: nuevoDetalle,
-    })
-  }
-
   // ============================================
   // 🎟️ CUPONES
   // ============================================
@@ -335,7 +327,6 @@ export function useApi() {
     createProducto,
     updateProducto,
     deleteProducto,
-    updatePrecioProducto,
 
     getCuponesDisponibles,
     getCuponesUsuario,

@@ -10,7 +10,7 @@ import io
 import os
 from pathlib import Path
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from rembg import remove  # ✔ corregido (solo una vez)
@@ -35,6 +35,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 IMAGENES_IA_DIR = BASE_DIR / "backend" / "api" / "imagenes-generadas-con-IA"
 IMAGENES_IA_DIR.mkdir(parents=True, exist_ok=True)
 
+UPLOADS_DIR = BASE_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
 # CORS: leer orígenes desde .env; en dev acepta localhost:5173 y :3000
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
@@ -48,6 +51,7 @@ app.add_middleware(
 )
 
 app.mount("/imagenes", StaticFiles(directory=str(IMAGENES_IA_DIR)), name="imagenes")
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 @app.post('/api/remove-background')
 async def remove_background(file: UploadFile = File(...)):
@@ -101,7 +105,7 @@ async def remove_background(file: UploadFile = File(...)):
 # CONFIGURACIÓN
 # ============================================================
 
-# Directorios de uploads
+# Directorios de uploads (sobrescribir la definición anterior si aplica)
 BASE_DIR = Path(__file__).parent.parent
 UPLOADS_DIR = BASE_DIR / 'uploads' / 'designs'
 THUMBNAILS_DIR = BASE_DIR / 'uploads' / 'thumbnails'
@@ -1311,7 +1315,12 @@ def obtener_cupones_disponibles_cliente(id_cliente: int):
         # ============================================================
         dias_inactivo = 999
         if ultima_compra:
-            dias_inactivo = (datetime.now() - ultima_compra).days
+            # Asegurar que ambos datetime tengan timezone para la resta
+            ahora = datetime.now(timezone.utc)
+            # Si ultima_compra no tiene timezone, usarlo como naive con UTC
+            if ultima_compra.tzinfo is None:
+                ultima_compra = ultima_compra.replace(tzinfo=timezone.utc)
+            dias_inactivo = (ahora - ultima_compra).days
         
         # ============================================================
         # 4. APLICAR LÓGICA DE NEGOCIO - FILTRAR CUPONES

@@ -6,7 +6,7 @@
         <span class="step-badge">3</span>
         Seleccion&#225; tu producto
       </h2>
-      <button @click="$emit('go-back')" class="btn-volver">&#8592; Volver</button>
+      <button @click="$emit('go-back')" class="btn btn-back">&#8592; Volver</button>
     </div>
 
     <!-- Loading -->
@@ -19,7 +19,7 @@
     <!-- Sin productos -->
     <div v-else-if="productList.length === 0" class="empty-state">
       <p>No hay productos disponibles en este momento.</p>
-      <button @click="$emit('go-back')" class="btn-primary">Volver</button>
+      <button @click="$emit('go-back')" class="btn btn-back">Volver</button>
     </div>
 
     <!-- Lista de productos -->
@@ -53,7 +53,7 @@
               v-for="t in availableTalles"
               :key="t"
               @click="talle = t"
-              class="variant-btn"
+              class="btn btn-back"
               :class="{ active: talle === t }"
             >{{ t }}</button>
           </div>
@@ -67,7 +67,7 @@
               v-for="c in availableColores"
               :key="c"
               @click="color = c"
-              class="variant-btn"
+              class="btn btn-back"
               :class="{ active: color === c }"
             >{{ c }}</button>
           </div>
@@ -77,9 +77,9 @@
         <div class="form-group">
           <label class="form-label">Cantidad:</label>
           <div class="quantity-control">
-            <button @click="cantidad > 1 && cantidad--" class="qty-btn">&#8722;</button>
+            <button @click="cantidad > 1 && cantidad--" class="btn btn-back">&#8722;</button>
             <span class="qty-display">{{ cantidad }}</span>
-            <button @click="cantidad < 10 && cantidad++" class="qty-btn">+</button>
+            <button @click="cantidad < 10 && cantidad++" class="btn btn-back">+</button>
           </div>
         </div>
 
@@ -90,7 +90,7 @@
         </div>
 
         <!-- Continuar -->
-        <button @click="confirmSelection" :disabled="!canContinue" class="btn-continue">
+        <button @click="confirmSelection" :disabled="!canContinue" class="btn btn-back">
           Continuar &#8594;
         </button>
       </div>

@@ -14,7 +14,7 @@
       style="display: none;"
     />
 
-    <button class="btn btn-primary" @click="openFile">
+    <button class="btn btn-back" @click="openFile">
       📁 Elegir imagen
     </button>
     
@@ -25,7 +25,7 @@
 
     <!-- Acciones -->
     <div v-if="preview" class="actions">
-      <button @click="emitImage" class="btn btn-primary">
+      <button @click="emitImage" class="btn btn-back">
         ✅ Usar imagen
       </button>
     </div>

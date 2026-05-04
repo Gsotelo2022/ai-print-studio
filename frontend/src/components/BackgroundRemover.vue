@@ -6,7 +6,7 @@
         <span class="step-badge">2</span>
         Editar imagen
       </h2>
-      <button @click="goBack" class="btn-volver">
+      <button @click="goBack" class="btn btn-back">
         ← Volver
       </button>
     </div>
@@ -34,7 +34,7 @@
           <h3>Opciones de edición</h3>
 
           <div class="option-item">
-            <button @click="removeBackground" class="btn btn-option" :disabled="loading">
+            <button @click="removeBackground" class="btn btn-back" :disabled="loading">
               <span v-if="!loading">✨ REMOVER FONDO</span>
               <span v-else>⏳ PROCESANDO (puede tomar 1-3 minutos)...</span>
             </button>
@@ -46,14 +46,14 @@
           </div>
 
           <div class="option-item">
-            <button @click="rotateImage" class="btn btn-option">
+            <button @click="rotateImage" class="btn btn-back">
               🔄 ROTAR IMAGEN
             </button>
             <p class="option-description">Gira la imagen 90 grados</p>
           </div>
 
           <div class="option-item">
-            <button @click="flipImage" class="btn btn-option">
+            <button @click="flipImage" class="btn btn-back">
               ↔️ VOLTEAR IMAGEN
             </button>
             <p class="option-description">Espeja la imagen horizontalmente</p>
@@ -62,10 +62,10 @@
 
         <!-- Acciones finales -->
         <div class="action-buttons">
-          <button @click="continueWithoutChanges" class="btn btn-secondary">
+          <button @click="continueWithoutChanges" class="btn btn-back">
             Continuar sin cambios
           </button>
-          <button @click="confirmChanges" class="btn btn-primary" :disabled="!hasChanges">
+          <button @click="confirmChanges" class="btn btn-back" :disabled="!hasChanges">
             ✅ Continuar con cambios
           </button>
         </div>

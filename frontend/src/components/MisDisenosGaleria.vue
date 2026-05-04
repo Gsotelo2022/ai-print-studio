@@ -22,7 +22,7 @@
         <span class="step-badge">📸</span>
         Mis Diseños
       </h2>
-      <button @click="$emit('go-back')" class="btn-volver">
+      <button @click="$emit('go-back')" class="btn btn-back">
         ← Volver
       </button>
     </div>
@@ -36,7 +36,7 @@
     <!-- Error -->
     <div v-else-if="error" class="error-container">
       <p>❌ Error al cargar diseños: {{ error }}</p>
-      <button @click="cargarDisenos" class="btn-retry">Reintentar</button>
+      <button @click="cargarDisenos" class="btn btn-back">Reintentar</button>
     </div>
 
     <!-- Contenido principal -->
@@ -63,19 +63,19 @@
       <!-- Filtros -->
       <div class="filters-bar">
         <button 
-          :class="['filter-btn', { active: filtroActivo === 'todos' }]"
+          :class="['btn btn-back', { active: filtroActivo === 'todos' }]"
           @click="filtroActivo = 'todos'"
         >
           Todos
         </button>
         <button 
-          :class="['filter-btn', { active: filtroActivo === 'ia' }]"
+          :class="['btn btn-back', { active: filtroActivo === 'ia' }]"
           @click="filtroActivo = 'ia'"
         >
           Generados por IA
         </button>
         <button 
-          :class="['filter-btn', { active: filtroActivo === 'subidos' }]"
+          :class="['btn btn-back', { active: filtroActivo === 'subidos' }]"
           @click="filtroActivo = 'subidos'"
         >
           Subidos manualmente
@@ -87,7 +87,7 @@
         <span class="empty-icon">📸</span>
         <h3>No tienes diseños aún</h3>
         <p>Genera tu primera imagen con IA o sube tu propio diseño</p>
-        <button @click="$emit('go-back')" class="btn-primary">
+        <button @click="$emit('go-back')" class="btn btn-back">
           Crear nuevo diseño
         </button>
       </div>
@@ -120,7 +120,7 @@
             
             <!-- Overlay hover -->
             <div class="diseno-overlay">
-              <button class="btn-use">
+              <button class="btn btn-back">
                 ✓ Usar este diseño
               </button>
             </div>
@@ -152,7 +152,7 @@
           <!-- Header modal -->
           <div class="modal-header">
             <h3>{{ disenoSeleccionado.nombre_original }}</h3>
-            <button class="btn-close" @click="cerrarModal">✕</button>
+            <button class="btn btn-back" @click="cerrarModal">✕</button>
           </div>
 
           <!-- Body modal -->
@@ -218,10 +218,10 @@
 
           <!-- Footer modal -->
           <div class="modal-footer">
-            <button class="btn-secondary" @click="cerrarModal">
+            <button class="btn btn-back" @click="cerrarModal">
               Cancelar
             </button>
-            <button class="btn-primary" @click="usarDiseno">
+            <button class="btn btn-back" @click="usarDiseno">
               ✓ Usar este diseño
             </button>
           </div>

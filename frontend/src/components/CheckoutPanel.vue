@@ -57,13 +57,13 @@
       <button
         @click="pay"
         :disabled="loading"
-        class="btn btn-primary btn-pay btn-mercadopago"
+        class="btn btn-back btn-pay btn-mercadopago"
       >
         {{ loading ? '⏳ Conectando con MercadoPago...' : '💳 Pagar ahora con Mercado Pago' }}
       </button>
 
       <!-- Envío WhatsApp -->
-      <button class="btn btn-whatsapp" @click="sendWhatsApp">
+      <button class="btn btn-back btn-whatsapp" @click="sendWhatsApp">
         ✅ Enviar por WhatsApp
       </button>
 

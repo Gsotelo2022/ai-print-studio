@@ -98,7 +98,7 @@
 
         <!-- Submit Button Row -->
         <div class="form-row button-row">
-          <button type="submit" class="btn btn-submit">
+          <button type="submit" class="btn btn-back">
             <span class="btn-icon">👤</span>
             Registrarme
           </button>

@@ -2,7 +2,7 @@
   <div class="mis-pedidos-container">
     <div class="header">
       <h2 class="title">Mis Pedidos</h2>
-      <button @click="$emit('go-back')" class="btn-secondary">Volver</button>
+      <button @click="$emit('go-back')" class="btn btn-back">Volver</button>
     </div>
 
     <div v-if="cargando" class="loading-state">
@@ -16,7 +16,7 @@
 
     <div v-if="!cargando && pedidos.length === 0 && !error" class="empty-state">
       <p>Aún no has realizado ningún pedido.</p>
-      <button @click="$emit('go-back')" class="btn-primary">Crear mi primer diseño</button>
+      <button @click="$emit('go-back')" class="btn btn-back">Crear mi primer diseño</button>
     </div>
 
     <div v-if="!cargando && pedidos.length > 0" class="pedidos-list">

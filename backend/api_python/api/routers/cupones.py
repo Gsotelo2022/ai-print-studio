@@ -4,7 +4,7 @@ Ruta: GET /api/cupones/disponibles/{id_cliente}
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 
 from db import get_connection
 from api.dependencies import json_success, get_current_user
@@ -61,7 +61,12 @@ def obtener_cupones_disponibles_cliente(
 
         dias_inactivo = 999
         if ultima_compra:
-            dias_inactivo = (datetime.now() - ultima_compra).days
+            # Asegurar que ambos datetime tengan timezone para la resta
+            ahora = datetime.now(timezone.utc)
+            # Si ultima_compra no tiene timezone, usarlo como naive con UTC
+            if ultima_compra.tzinfo is None:
+                ultima_compra = ultima_compra.replace(tzinfo=timezone.utc)
+            dias_inactivo = (ahora - ultima_compra).days
 
         # 3. FILTRAR cupones POR PERFIL
         cupones_aplicables = []

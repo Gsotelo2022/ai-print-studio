@@ -855,6 +855,16 @@ class ProductoUpdateIn(_BM2):
 class ProductoPrecioUpdateIn(_BM2):
     precio: float
 
+class AtributoCreateIn(_BM2):
+    nombre: str
+
+class VarianteCreateIn(_BM2):
+    id_producto: int
+    sku: str
+    precio: float
+    stock: int = 0
+    valores: dict = {}
+
 
 @router.post("/admin/productos")
 async def admin_crear_producto(
@@ -1153,6 +1163,242 @@ def get_metricas():#user: dict = Depends(get_current_user)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": str(e)})
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+# ============================================================
+# VARIANTES - CREAR/ACTUALIZAR
+# ============================================================
+
+@router.post("/admin/productos/{id_producto}/variantes")
+def crear_variante_producto(
+    id_producto: int,
+    sku: str,
+    precio: float,
+    stock: int = 0,
+    atributos: dict = {},
+    user: dict = Depends(require_admin)
+):
+    """
+    Crear una nueva variante para un producto.
+    
+    Ejemplo:
+    {
+        "sku": "REMERA-S-BLANCA",
+        "precio": 25.00,
+        "stock": 50,
+        "atributos": {"talla": "S", "color": "Blanco"}
+    }
+    """
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # Verificar que el producto exista
+        cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s", (id_producto,))
+        if not cur.fetchone():
+            raise HTTPException(404, {"success": False, "error": "Producto no encontrado"})
+        
+        # Crear la variante
+        cur.execute("""
+            INSERT INTO producto_variantes (id_producto, sku, precio, stock_actual, activo)
+            VALUES (%s, %s, %s, %s, true)
+            RETURNING id_variante
+        """, (id_producto, sku, precio, stock))
+        
+        id_variante = cur.fetchone()[0]
+        
+        # Insertar atributos si existen
+        if atributos and isinstance(atributos, dict):
+            for nombre_atrib, valor in atributos.items():
+                cur.execute("""
+                    INSERT INTO variante_atributos (id_variante, nombre, valor)
+                    VALUES (%s, %s, %s)
+                """, (id_variante, nombre_atrib, valor))
+        
+        conn.commit()
+        
+        return json_success({
+            "id_variante": id_variante,
+            "id_producto": id_producto,
+            "sku": sku,
+            "precio": precio,
+            "stock": stock,
+            "atributos": atributos,
+            "mensaje": "Variante creada correctamente"
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(500, {"success": False, "error": str(e)})
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+# ============================================================
+# ATRIBUTOS
+# ============================================================
+@router.post("/admin/atributos")
+def crear_atributo(
+    payload: AtributoCreateIn,
+    user: dict = Depends(require_admin)
+):
+    """
+    Crear un nuevo atributo de producto (ej: Color, Talle, Material)
+    
+    Ejemplo:
+    {
+        "nombre": "Color"
+    }
+    """
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # Verificar que no exista un atributo con el mismo nombre
+        cur.execute("SELECT id_atributo FROM producto_atributos WHERE nombre = %s", (payload.nombre,))
+        existe = cur.fetchone()
+        
+        if existe:
+            return json_success({
+                "id_atributo": existe[0],
+                "nombre": payload.nombre,
+                "mensaje": "Atributo ya existe"
+            })
+        
+        # Crear el nuevo atributo
+        cur.execute("""
+            INSERT INTO producto_atributos (nombre)
+            VALUES (%s)
+            RETURNING id_atributo
+        """, (payload.nombre,))
+        
+        id_atributo = cur.fetchone()[0]
+        conn.commit()
+        
+        return json_success({
+            "id_atributo": id_atributo,
+            "nombre": payload.nombre,
+            "mensaje": "Atributo creado correctamente"
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(500, {"success": False, "error": str(e)})
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+# ============================================================
+# VARIANTES (POST único)
+# ============================================================
+@router.post("/admin/variantes")
+def crear_variante(
+    payload: VarianteCreateIn,
+    user: dict = Depends(require_admin)
+):
+    """
+    Crear una nueva variante para un producto.
+    
+    Ejemplo:
+    {
+        "id_producto": 1,
+        "sku": "REMERA-S-BLANCA",
+        "precio": 25.00,
+        "stock": 50,
+        "valores": {"id_atributo": "valor", "2": "Blanco"}
+    }
+    """
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # Verificar que el producto exista
+        cur.execute("SELECT id_producto FROM productos WHERE id_producto = %s", 
+                   (payload.id_producto,))
+        if not cur.fetchone():
+            raise HTTPException(404, {"success": False, "error": "Producto no encontrado"})
+        
+        # Crear la variante
+        cur.execute("""
+            INSERT INTO producto_variantes (id_producto, sku, precio, stock_actual, activo)
+            VALUES (%s, %s, %s, %s, true)
+            RETURNING id_variante
+        """, (payload.id_producto, payload.sku, payload.precio, payload.stock))
+        
+        id_variante = cur.fetchone()[0]
+        
+        # Procesar valores de atributos
+        if payload.valores and isinstance(payload.valores, dict):
+            for id_atributo_str, valor_texto in payload.valores.items():
+                try:
+                    id_atributo = int(id_atributo_str)
+                except (ValueError, TypeError):
+                    continue
+                
+                # Buscar o crear el valor del atributo
+                cur.execute("""
+                    SELECT id_valor FROM producto_atributo_valores 
+                    WHERE id_atributo = %s AND valor = %s
+                """, (id_atributo, valor_texto))
+                
+                fila = cur.fetchone()
+                if fila:
+                    id_valor = fila[0]
+                else:
+                    # Crear nuevo valor de atributo
+                    cur.execute("""
+                        INSERT INTO producto_atributo_valores (id_atributo, valor)
+                        VALUES (%s, %s)
+                        RETURNING id_valor
+                    """, (id_atributo, valor_texto))
+                    id_valor = cur.fetchone()[0]
+                
+                # Relacionar variante con valor
+                cur.execute("""
+                    INSERT INTO variante_atributos (id_variante, id_valor)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (id_variante, id_valor))
+        
+        conn.commit()
+        
+        return json_success({
+            "id_variante": id_variante,
+            "id_producto": payload.id_producto,
+            "sku": payload.sku,
+            "precio": payload.precio,
+            "stock": payload.stock,
+            "valores": payload.valores,
+            "mensaje": "Variante creada correctamente"
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(500, {"success": False, "error": str(e)})
     finally:
         if cur:
             cur.close()

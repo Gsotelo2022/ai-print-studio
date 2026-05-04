@@ -6,7 +6,7 @@
         <span class="step-badge">4</span>
         Resumen de tu pedido
       </h2>
-      <button @click="$emit('go-back')" class="btn-volver">← Volver</button>
+      <button @click="$emit('go-back')" class="btn btn-back">← Volver</button>
     </div>
 
     <div class="summary-layout">
@@ -74,7 +74,7 @@
         <div v-if="!pedidoConfirmado" class="confirm-section">
           <button
             @click="confirmarPedido"
-            class="btn-action btn-confirm"
+            class="btn btn-back"
             :disabled="confirmando"
           >
             <span class="btn-icon">{{ confirmando ? '⏳' : '✅' }}</span>
@@ -83,12 +83,12 @@
         </div>
 
         <div v-if="pedidoConfirmado" class="actions-section">
-          <button @click="enviarWhatsApp" class="btn-action btn-whatsapp">
+          <button @click="enviarWhatsApp" class="btn btn-back">
             <span class="btn-icon">📱</span>
             Enviar pedido por WhatsApp
           </button>
 
-          <button @click="enviarWhatsAppYPagar" class="btn-action btn-whatsapp-mp">
+          <button @click="enviarWhatsAppYPagar" class="btn btn-back">
             <span class="btn-icon">💳</span>
             Enviar por WhatsApp + Pagar por MP
           </button>

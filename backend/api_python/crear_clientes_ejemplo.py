@@ -70,8 +70,8 @@ def crear_clientes_ejemplo():
         # Insertar cliente
         cur.execute("""
             INSERT INTO Usuarios (Nombre, Email, telefono, password_user, Tipo)
-            VALUES (%s, ?, ?, ?, 'cliente')
-        """, (cliente["nombre"], cliente["email"], cliente["telefono"], hashed_password))
+            VALUES (%s, %s, %s, %s, %s)
+        """, (cliente["nombre"], cliente["email"], cliente["telefono"], hashed_password, 'cliente'))
         
         conn.commit()
         print(f"✅ Cliente creado: {cliente['nombre']} ({cliente['email']})")

@@ -19,7 +19,7 @@
         <button
           @click="asistirPrompt"
           :disabled="loadingPrompt || !descripcionUsuario.trim()"
-          class="btn btn-asistir"
+          class="btn btn-back"
         >
           {{ loadingPrompt ? '⏳' : '🪄 Mejorar' }}
         </button>
@@ -33,7 +33,7 @@
       placeholder="El prompt aparecerá aquí después de usar el asistente, o escribí uno directamente..."
     ></textarea>
 
-    <button @click="generate" :disabled="loading || !prompt.trim()" class="btn btn-primary">
+    <button @click="generate" :disabled="loading || !prompt.trim()" class="btn btn-back">
       {{ loading ? 'Generando...' : 'Generar imagen' }}
     </button>
     

@@ -46,7 +46,7 @@
     <button
       @click="generate"
       :disabled="!canGenerate || loading"
-      class="btn btn-primary btn-generate"
+      class="btn btn-back btn-generate"
     >
       {{ loading ? '⏳ Generando...' : '🎨 Generar Imagen' }}
     </button>
@@ -72,7 +72,7 @@
             v-for="size in sizes"
             :key="size.w"
             @click="width = size.w; height = size.h"
-            class="btn btn-sm"
+            class="btn btn-back"
             :class="{ 'btn-active': width === size.w && height === size.h }"
           >
             {{ size.w }} × {{ size.h }}
@@ -91,7 +91,7 @@
       <h3>Imagen generada:</h3>
       <img :src="previewUrl" alt="Imagen generada por IA" class="generated-image" />
       <div class="preview-actions">
-        <button @click="generate" class="btn btn-secondary" :disabled="loading">
+        <button @click="generate" class="btn btn-back" :disabled="loading">
           🔄 Regenerar
         </button>
       </div>

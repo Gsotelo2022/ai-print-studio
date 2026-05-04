@@ -1015,6 +1015,7 @@ def get_siguiente_orden():
         )
 
 
+@app.post('/admin/productos')
 @app.post('/api/admin/productos')
 def create_producto(body: ProductoCreateIn):
     """Crear un nuevo producto base en la estructura normalizada"""
@@ -1239,6 +1240,87 @@ def create_variante(id_producto: int, body: VarianteCreateIn):
             status_code=500,
             detail={"success": False, "error": f"Error al crear variante: {str(e)}"}
         )
+
+
+class AtributoCreateIn(BaseModel):
+    nombre: str
+
+@app.post('/admin/atributos')
+@app.post('/api/admin/atributos')
+def create_atributo(body: AtributoCreateIn):
+    """Crea un atributo si no existe, o retorna el id si ya existe"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # Buscar si ya existe (case insensitive simplificado)
+        cur.execute("SELECT id_atributo FROM Producto_Atributos WHERE LOWER(nombre) = LOWER(?)", (body.nombre,))
+        row = cur.fetchone()
+        
+        if row:
+            id_attr = row[0]
+        else:
+            # Crear nuevo
+            cur.execute("INSERT INTO Producto_Atributos (nombre, tipo) VALUES (?, 'texto')", (body.nombre,))
+            conn.commit()
+            cur.execute("SELECT @@IDENTITY")
+            id_attr = cur.fetchone()[0]
+            
+        cur.close()
+        conn.close()
+        return json_success({"id_atributo": int(id_attr)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"success": False, "error": str(e)})
+
+class VarianteAdminCreateIn(BaseModel):
+    id_producto: int
+    sku: str
+    precio: float
+    stock: int
+    valores: dict # id_atributo -> valor_texto
+
+@app.post('/admin/variantes')
+@app.post('/api/admin/variantes')
+def create_variante_admin(body: VarianteAdminCreateIn):
+    """Endpoint simplificado para la creación masiva desde el admin"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        # 1. Crear la variante base
+        query_var = "INSERT INTO Producto_Variantes (id_producto, sku, precio, stock_actual, activo) VALUES (?, ?, ?, ?, 1)"
+        cur.execute(query_var, (body.id_producto, body.sku, body.precio, body.stock))
+        conn.commit()
+        cur.execute("SELECT @@IDENTITY")
+        id_variante = int(cur.fetchone()[0])
+        
+        # 2. Procesar los valores de los atributos
+        for id_attr, valor_texto in body.valores.items():
+            # Buscar si el valor ya existe para ese atributo
+            cur.execute("SELECT id_valor FROM Producto_Atributo_Valores WHERE id_atributo = ? AND LOWER(valor) = LOWER(?)", 
+                       (int(id_attr), str(valor_texto)))
+            vrow = cur.fetchone()
+            
+            if vrow:
+                id_valor = vrow[0]
+            else:
+                # Crear el valor
+                cur.execute("INSERT INTO Producto_Atributo_Valores (id_atributo, valor) VALUES (?, ?)", 
+                           (int(id_attr), str(valor_texto)))
+                conn.commit()
+                cur.execute("SELECT @@IDENTITY")
+                id_valor = cur.fetchone()[0]
+                
+            # Vincular a la variante
+            cur.execute("INSERT INTO Variante_Atributos (id_variante, id_atributo, id_valor) VALUES (?, ?, ?)", 
+                       (id_variante, int(id_attr), int(id_valor)))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        return json_success({"id_variante": id_variante})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"success": False, "error": str(e)})
 
 
 @app.get('/api/admin/productos/{id_producto}/variantes')

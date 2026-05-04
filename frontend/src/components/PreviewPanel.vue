@@ -6,7 +6,7 @@
         <span class="step-badge">4</span>
         Vista previa del estampado
       </h2>
-      <button @click="goBack" class="btn-volver">← Volver</button>
+      <button @click="goBack" class="btn btn-back">← Volver</button>
     </div>
 
     <div class="preview-layout">

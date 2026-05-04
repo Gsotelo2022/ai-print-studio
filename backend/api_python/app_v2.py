@@ -46,7 +46,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 IMAGENES_IA_DIR = BASE_DIR / "api" / "imagenes-generadas-con-IA"
 IMAGENES_IA_DIR.mkdir(parents=True, exist_ok=True)
 
+UPLOADS_DIR = BASE_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
 app.mount("/imagenes", StaticFiles(directory=str(IMAGENES_IA_DIR)), name="imagenes")
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # HTTP Errors
 @app.exception_handler(HTTPException)

@@ -371,6 +371,18 @@ body {
   color: white;
 }
 
+.btn-back {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.btn-back:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 /* --- Radio buttons (estilo) --- */
 .radio-group {
   display: flex;

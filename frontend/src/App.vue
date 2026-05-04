@@ -117,7 +117,7 @@
           </div>
         </div>
       </section>
-
+      <ChatBot />
       <!-- PASO 1B: SUBIR IMAGEN -->
       <section v-if="userLogged && imageSourceMode === 'upload' && !generatedImage && userType === 'cliente'" class="workflow-section">
         <ImageUploader @image-generated="onImageGenerated" @go-back="goToDashboard" />
@@ -177,7 +177,7 @@
         />
       </section>
     </main>
-    <ChatBot />
+    
     <!-- Footer (oculto para admin) -->
     <footer v-if="userType !== 'admin'" class="app-footer">
       <div class="footer-content">

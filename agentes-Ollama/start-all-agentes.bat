@@ -4,9 +4,5 @@ color 0A
 
 echo Inciando agentes...
 
-start "Agente Productos" cmd /k "cd agente-productos && call start-agente-productos.bat"
-
-start "Agente Precios" cmd /k "cd agente-precios && if not exist .venv python -m venv .venv && call .venv\Scripts\activate.bat && pip install -r requirements.txt 2>nul && python agente_precios.py"
-
 start "Agente Cupones" cmd /k "cd agente-cupones && call start-agente-descuentos.bat"
-
+start "Agente Prompts"  cmd /k "cd agente-prompts  && call start-agente-prompts.bat"

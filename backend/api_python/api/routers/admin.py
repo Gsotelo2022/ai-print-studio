@@ -1020,3 +1020,141 @@ def admin_get_estadisticas(user: dict = Depends(require_admin)):
 
     except Exception as e:
         raise HTTPException(500, {"success": False, "error": str(e)})
+
+# ============================================================
+# MÉTRICAS EN TIEMPO REAL — Dashboard
+# ============================================================
+@router.get("/admin/metricas")
+def get_metricas():#user: dict = Depends(get_current_user)):
+    """
+    Devuelve métricas clave del negocio calculadas en tiempo real.
+    Requiere autenticación de admin.
+    """
+    conn = None
+    cur = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # --- Totales generales ---
+        cur.execute("""
+            SELECT
+                COUNT(*) AS total_pedidos,
+                COALESCE(SUM(CASE WHEN estado_pago = 'aprobado' THEN total ELSE 0 END), 0) AS ingresos_totales,
+                COUNT(CASE WHEN estado_pago = 'aprobado' THEN 1 END) AS pedidos_pagados,
+                COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pedidos_pendientes,
+                COUNT(CASE WHEN estado = 'en_proceso' THEN 1 END) AS pedidos_en_proceso,
+                COUNT(CASE WHEN estado = 'cancelado' THEN 1 END) AS pedidos_cancelados
+            FROM pedidos
+        """)
+        row = cur.fetchone()
+        cols = [d[0] for d in cur.description]
+        totales = dict(zip(cols, row))
+
+        # --- Métricas del mes actual ---
+        cur.execute("""
+            SELECT
+                COUNT(*) AS pedidos_mes,
+                COALESCE(SUM(CASE WHEN estado_pago = 'aprobado' THEN total ELSE 0 END), 0) AS ingresos_mes,
+                COUNT(CASE WHEN estado_pago = 'aprobado' THEN 1 END) AS pagados_mes
+            FROM pedidos
+            WHERE DATE_TRUNC('month', fecha_pedido) = DATE_TRUNC('month', CURRENT_DATE)
+        """)
+        row = cur.fetchone()
+        cols = [d[0] for d in cur.description]
+        mes = dict(zip(cols, row))
+
+        # --- Métricas de hoy ---
+        cur.execute("""
+            SELECT
+                COUNT(*) AS pedidos_hoy,
+                COALESCE(SUM(CASE WHEN estado_pago = 'aprobado' THEN total ELSE 0 END), 0) AS ingresos_hoy
+            FROM pedidos
+            WHERE DATE(fecha_pedido) = CURRENT_DATE
+        """)
+        row = cur.fetchone()
+        cols = [d[0] for d in cur.description]
+        hoy = dict(zip(cols, row))
+
+        # --- Productos más pedidos (top 5) ---
+        cur.execute("""
+            SELECT
+                p.nombre,
+                COUNT(pi.id_item) AS cantidad_vendida,
+                COALESCE(SUM(pi.subtotal), 0) AS ingreso_generado
+            FROM pedidos_items pi
+            INNER JOIN producto_variantes pv ON pi.id_variante = pv.id_variante
+            INNER JOIN productos p ON pv.id_producto = p.id_producto
+            GROUP BY p.id_producto, p.nombre
+            ORDER BY cantidad_vendida DESC
+            LIMIT 5
+        """)
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description]
+        top_productos = [dict(zip(cols, r)) for r in rows]
+
+        # --- Clientes nuevos este mes ---
+        cur.execute("""
+            SELECT COUNT(*) AS clientes_nuevos_mes
+            FROM usuarios
+            WHERE tipo = 'cliente'
+              AND DATE_TRUNC('month', fecha_registro) = DATE_TRUNC('month', CURRENT_DATE)
+        """)
+        row = cur.fetchone()
+        clientes_nuevos_mes = row[0] if row else 0
+
+        # --- Abandono de checkout (mejorado) ---
+        cur.execute("""
+            SELECT COUNT(*) AS checkout_abandonado
+            FROM pedidos p
+            WHERE p.estado = 'pendiente'
+              AND p.estado_pago = 'pendiente'
+              AND p.fecha_pedido < NOW() - INTERVAL '2 hours'
+              AND NOT EXISTS (
+                  SELECT 1 FROM pagos pa
+                  WHERE pa.id_pedido = p.id_pedido
+                  AND pa.estado = 'aprobado'
+              )
+        """)
+        row = cur.fetchone()
+        checkout_abandonado = row[0] if row else 0
+
+        return json_success({
+            "totales": {
+                "pedidos": int(totales.get("total_pedidos", 0)),
+                "ingresos": float(totales.get("ingresos_totales", 0)),
+                "pagados": int(totales.get("pedidos_pagados", 0)),
+                "pendientes": int(totales.get("pedidos_pendientes", 0)),
+                "en_proceso": int(totales.get("pedidos_en_proceso", 0)),
+                "cancelados": int(totales.get("pedidos_cancelados", 0)),
+            },
+            "mes_actual": {
+                "pedidos": int(mes.get("pedidos_mes", 0)),
+                "ingresos": float(mes.get("ingresos_mes", 0)),
+                "pagados": int(mes.get("pagados_mes", 0)),
+                "clientes_nuevos": int(clientes_nuevos_mes),
+            },
+            "hoy": {
+                "pedidos": int(hoy.get("pedidos_hoy", 0)),
+                "ingresos": float(hoy.get("ingresos_hoy", 0)),
+            },
+            "top_productos": [
+                {
+                    "nombre": r["nombre"],
+                    "cantidad_vendida": int(r["cantidad_vendida"]),
+                    "ingreso_generado": float(r["ingreso_generado"]),
+                }
+                for r in top_productos
+            ],
+            "alertas": {
+                "checkout_abandonado": int(checkout_abandonado),
+            }
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()

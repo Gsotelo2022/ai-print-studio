@@ -73,9 +73,8 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def _jwt_secret() -> str:
     secret = os.getenv("JWT_SECRET", "")
-    if not secret:
-        secret = "dev-secret-change-in-production"
-        print("⚠️  JWT_SECRET no configurado en .env — usando valor inseguro de desarrollo")
+    if not secret or len(secret) < 32:
+        raise RuntimeError("JWT_SECRET no configurado o muy débil. El servidor no puede iniciar sin una clave segura en .env (¿mínimo 32 caracteres)")
     return secret
 
 

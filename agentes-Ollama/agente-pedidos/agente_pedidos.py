@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import pyodbc
+import psycopg2
 import requests
 import re
 import json
@@ -93,62 +93,64 @@ def buscar_pregunta_similar(consulta_usuario):
         return None, None, 0
 
 # ==============================
-# DB CONNECTION
+# DB CONNECTION — PostgreSQL
 # ==============================
+
+DB_CONFIG = {
+    'host': os.getenv('PG_HOST', '127.0.0.1'),
+    'port': os.getenv('PG_PORT', '5432'),
+    'database': os.getenv('PG_DB', 'PrendeteRock'),
+    'user': os.getenv('PG_USER', 'postgres'),
+    'password': os.getenv('PG_PASSWORD', 'Pasteldepapas123#')
+}
 
 def get_db_connection():
     try:
-        return pyodbc.connect(
-            'DRIVER={ODBC Driver 17 for SQL Server};'
-            'SERVER=.\\SQLEXPRESS01;'
-            'DATABASE=PrendeteRock;'
-            'Trusted_Connection=yes;'
+        return psycopg2.connect(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            database=DB_CONFIG['database'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password']
         )
     except Exception as e:
-        print(f"❌ Error conectando a BD: {e}")
+        print(f"❌ Error conectando a BD PostgreSQL: {e}")
         return None
 
 def obtener_rol_usuario(user_id):
-    """Obtiene el rol del usuario desde la BD"""
+    """Obtiene el tipo de usuario (admin o cliente) desde la BD PostgreSQL"""
     try:
         conn = get_db_connection()
         if not conn:
-            print(f"⚠️ No se pudo verificar rol del usuario {user_id}")
-            return "CLIENTE"  # Default a CLIENTE si hay error
+            print(f"⚠️ No se pudo verificar tipo del usuario {user_id}")
+            return "cliente"  # Default a cliente si hay error
         
         cursor = conn.cursor()
         
-        # Buscar en tabla usuarios (es_admin, rol, tipo_usuario, etc)
-        queries_intento = [
-            "SELECT es_admin FROM usuarios WHERE id_usuario = ?",
-            "SELECT is_admin FROM usuarios WHERE id_usuario = ?", 
-            "SELECT rol FROM usuarios WHERE id_usuario = ?",
-            "SELECT tipo_usuario FROM usuarios WHERE id_usuario = ?"
-        ]
+        # Buscar el campo 'tipo' en la tabla usuarios (PostgreSQL)
+        query = "SELECT tipo FROM usuarios WHERE id_usuario = %s"
         
-        for query in queries_intento:
-            try:
-                cursor.execute(query, user_id)
-                result = cursor.fetchone()
-                if result:
-                    # Verificar si es admin (1, True, 'admin', 'ADMIN')
-                    valor = result[0]
-                    if isinstance(valor, bool):
-                        return "ADMIN" if valor else "CLIENTE"
-                    elif isinstance(valor, int):
-                        return "ADMIN" if valor == 1 else "CLIENTE"
-                    elif isinstance(valor, str):
-                        return "ADMIN" if valor.upper() in ['ADMIN', 'ADMINISTRADOR'] else "CLIENTE"
-                    break
-            except:
-                continue
-        
-        conn.close()
-        return "CLIENTE"  # Default a CLIENTE
+        try:
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if result:
+                tipo = result[0].lower() if result[0] else "cliente"
+                print(f"✅ Tipo de usuario encontrado: {tipo}")
+                return tipo
+            else:
+                print(f"⚠️ Usuario {user_id} no encontrado")
+                return "cliente"
+        except Exception as e:
+            print(f"❌ Error en query: {e}")
+            conn.close()
+            return "cliente"
         
     except Exception as e:
-        print(f"⚠️ Error obteniendo rol: {e}")
-        return "CLIENTE"  # Default a CLIENTE
+        print(f"⚠️ Error obteniendo tipo de usuario: {e}")
+        return "cliente"  # Default a cliente
 
 # ==============================
 # FUNCIONES DB
@@ -170,36 +172,33 @@ def ejecutar_query_faq(query_sql, user_id):
         
         cursor = conn.cursor()
         
-        # Contar placeholders
-        param_count = query_sql.count(':id_usuario') + query_sql.count(':user_id')
+        # Contar placeholders para todos los posibles parámetros
+        param_count = query_sql.count(':id_usuario') + query_sql.count(':user_id') + query_sql.count(':id_pedido') + query_sql.count(':id_item') + query_sql.count(':id_variante') + query_sql.count(':numero_orden') + query_sql.count(':codigo') + query_sql.count(':id_pago') + query_sql.count(':id_producto') + query_sql.count(':texto') + query_sql.count(':id_archivo')
         
-        # CORRECCIÓN: Reemplazar LIMIT (MySQL) con TOP (SQL Server)
-        # Patrón: ... LIMIT 10 → SELECT TOP 10 ...
-        if 'LIMIT' in query_sql.upper():
-            import re
-            match = re.search(r'\bLIMIT\s+(\d+)\s*$', query_sql, re.IGNORECASE)
-            if match:
-                limit_value = match.group(1)
-                # Remover LIMIT
-                query_sql = re.sub(r'\s+LIMIT\s+\d+\s*$', '', query_sql, flags=re.IGNORECASE)
-                # Agregar TOP después de SELECT
-                query_sql = re.sub(r'^(\s*SELECT\s+)', f'SELECT TOP {limit_value} ', query_sql, flags=re.IGNORECASE)
-                print(f"   🔧 Convertido LIMIT a TOP {limit_value}")
-        
-        # Reemplazar placeholders
-        query_procesada = query_sql.replace(':id_usuario', '?')
-        query_procesada = query_procesada.replace(':user_id', '?')
+        # PARA POSTGRESQL: Reemplazar placeholders :param con %s
+        query_procesada = query_sql
+        query_procesada = query_procesada.replace(':id_usuario', '%s')
+        query_procesada = query_procesada.replace(':user_id', '%s')
+        query_procesada = query_procesada.replace(':id_pedido', '%s')
+        query_procesada = query_procesada.replace(':id_item', '%s')
+        query_procesada = query_procesada.replace(':id_variante', '%s')
+        query_procesada = query_procesada.replace(':numero_orden', '%s')
+        query_procesada = query_procesada.replace(':codigo', '%s')
+        query_procesada = query_procesada.replace(':id_pago', '%s')
+        query_procesada = query_procesada.replace(':id_producto', '%s')
+        query_procesada = query_procesada.replace(':texto', '%s')
+        query_procesada = query_procesada.replace(':id_archivo', '%s')
         
         print(f"📊 Ejecutando query: {query_procesada[:100]}...")
         print(f"   Parámetros: {param_count} (user_id: {user_id})")
         
         # Ejecutar con o sin parámetros según corresponda
         if param_count > 0:
-            # Query con filtro de usuario
-            cursor.execute(query_procesada, user_id)
+            # Query con filtro de usuario - pasar user_id como tupla
+            cursor.execute(query_procesada, (user_id,))
         else:
             # Query genérica (sin parámetros)
-            print(f"   ⚠️ Query genérica detectada (sin :id_usuario)")
+            print(f"   ⚠️ Query genérica detectada (sin parámetros)")
             cursor.execute(query_procesada)
         
         rows = cursor.fetchall()
@@ -248,7 +247,154 @@ def formatear_resultado(rows, columnas_cursor):
 # def parsear_json(texto):
 #     ... (código antiguo)
 
+def buscar_usuario_por_nombre(nombre_busqueda):
+    """Busca un usuario por nombre completo o parcial"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        cursor = conn.cursor()
+        
+        # Buscar usuario cuyo nombre contenga el texto buscado (case-insensitive)
+        query = "SELECT id_usuario, nombre FROM usuarios WHERE LOWER(nombre) LIKE LOWER(%s) LIMIT 1"
+        cursor.execute(query, (f"%{nombre_busqueda}%",))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result:
+            user_id, nombre = result
+            print(f"👤 Usuario encontrado: {nombre} (ID: {user_id})")
+            return user_id
+        
+        print(f"⚠️ Usuario '{nombre_busqueda}' no encontrado")
+        return None
+        
+    except Exception as e:
+        print(f"❌ Error buscando usuario: {e}")
+        return None
 
+def extraer_nombre_de_pregunta(pregunta):
+    """Extrae posibles nombres propios de la pregunta (palabras con capital)"""
+    import re
+    # Palabras que típicamente no son nombres (preposiciones, artículos, incluso al inicio de frase)
+    palabras_ignoradas = {
+        'de', 'del', 'la', 'el', 'un', 'una', 'y', 'o', 'que', 
+        'tiene', 'tengo', 'cuales', 'cual', 'cuantos', 'cuanta',
+        'son', 'los', 'las', 'mis', 'mis', 'estos', 'esta'
+    }
+    
+    # Buscar palabras con capital (potenciales nombres propios)
+    # Ignorar la primera palabra si es una de las ignoradas (aunque empiece con Mayúscula)
+    palabras = re.findall(r'\b[A-ZÁÉÍÓÚ][a-záéíóú]+\b', pregunta)
+    
+    # Filtrar palabras ignoradas (case-insensitive) y palabras muy cortas
+    nombres_candidatos = [p for p in palabras if p.lower() not in palabras_ignoradas and len(p) > 2]
+    
+    if nombres_candidatos:
+        # Si la pregunta empieza con una palabra capitalizada pero común, la quitamos
+        # Ejemplo: "¿Cuales son..." -> Cuales es la primera, pero está en ignoradas.
+        # El regex [A-Z] ya captura "Cuales". Si "Cuales" está en candidatos, lo filtramos.
+        
+        # Intentamos reconstruir un nombre (Nombre Apellido)
+        # Solo si los candidatos aparecen consecutivamente o son relevantes
+        nombre_completo = ' '.join(nombres_candidatos[:2]) if len(nombres_candidatos) >= 2 else nombres_candidatos[0]
+        print(f"🔤 Nombre detectado en pregunta: {nombre_completo}")
+        return nombre_completo
+    
+    return None
+
+def generar_query_con_ollama(mensaje, tipo_usuario="cliente"):
+    """Usa Ollama para generar SQL dinámicamente cuando FAQ no tiene respuesta"""
+    try:
+        print(f"🤖 Generando query con Ollama...")
+        
+        # Prompt para guiar al modelo en generar SQL seguro
+        prompt = f"""Eres un experto en SQL PostgreSQL. Basándote en esta pregunta del usuario, genera UNA ÚNICA query SQL válida.
+
+CONTEXTO:
+- Base de datos: PostgreSQL
+- Tablas principales: usuarios, pedidos, pedidos_items, productos, archivos_diseno, pagos, cupones
+- El usuario es: {tipo_usuario}
+
+RESTRICCIONES:
+- La query debe usar ':id_usuario' como placeholder para filtros de usuario
+- NUNCA incluir DROP, DELETE, UPDATE, INSERT o comandos peligrosos
+- Las queries deben ser SELECT solamente
+- Usar LIMIT para limitar resultados
+
+PREGUNTA DEL USUARIO: {mensaje}
+
+Responde SOLO con la query SQL, sin explicaciones.
+
+Ejemplos válidos:
+- SELECT COUNT(*) FROM pedidos WHERE id_usuario = :id_usuario
+- SELECT * FROM pedidos WHERE id_usuario = :id_usuario ORDER BY fecha_pedido DESC LIMIT 10
+"""
+        
+        # Llamar a Ollama
+        response = requests.post(
+            OLLAMA_URL,
+            json={"prompt": prompt, "model": MODEL, "stream": False},
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            print(f"⚠️ Error Ollama: {response.status_code}")
+            return None
+        
+        resultado = response.json()
+        query_generada = resultado.get("response", "").strip()
+        
+        # Limpiar respuesta (a veces Ollama agrega explicaciones)
+        if "SELECT" in query_generada.upper():
+            # Extraer la línea que empieza con SELECT
+            lineas = query_generada.split('\n')
+            for linea in lineas:
+                if linea.strip().upper().startswith('SELECT'):
+                    query_generada = linea.strip()
+                    break
+        
+        print(f"✅ Query generada: {query_generada[:100]}...")
+        return query_generada if query_generada else None
+        
+    except Exception as e:
+        print(f"❌ Error generando query con Ollama: {e}")
+        return None
+
+def guardar_pregunta_nueva_al_faq(pregunta, query_sql, tipo="CLIENTE"):
+    """Guarda una nueva pregunta y query al archivo Excel del FAQ"""
+    try:
+        from openpyxl import load_workbook
+        
+        archivo = FAQ_FILE
+        if not os.path.exists(archivo):
+            print(f"⚠️ Archivo FAQ no existe: {archivo}")
+            return False
+        
+        wb = load_workbook(archivo)
+        ws = wb.active
+        
+        # Encontrar última fila
+        ultima_fila = ws.max_row + 1
+        
+        # Agregar nueva fila
+        ws[f'A{ultima_fila}'] = pregunta
+        ws[f'B{ultima_fila}'] = query_sql
+        ws[f'C{ultima_fila}'] = tipo
+        
+        wb.save(archivo)
+        print(f"✅ Nueva pregunta guardada en FAQ (fila {ultima_fila})")
+        
+        # Recargar FAQ en memoria
+        cargar_faq()
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error guardando en FAQ: {e}")
+        return False
 
 # ==============================
 # ENDPOINT
@@ -269,70 +415,116 @@ def chat():
 
         print(f"\n📩 Mensaje usuario: {mensaje}")
         print(f"👤 User ID: {user_id}")
+        
+        # ========================================
+        # OBTENER TIPO DE USUARIO
+        # ========================================
+        tipo_usuario = obtener_rol_usuario(user_id)
+        print(f"👨‍💼 Tipo del usuario: {tipo_usuario}")
+        
+        # ========================================
+        # DETECTAR SI PREGUNTA POR OTRO USUARIO
+        # ========================================
+        user_id_a_consultar = user_id  # Default: el usuario logueado
+        nombre_detectado = extraer_nombre_de_pregunta(mensaje)
+        
+        if nombre_detectado:
+            # Si hay un nombre específico y NO es admin -> rechazar
+            if tipo_usuario.lower() != "admin":
+                return jsonify({
+                    "respuesta": "❌ Los clientes solo pueden consultar sus propios datos.",
+                    "debug": "Detectamos que buscas información de otro usuario."
+                }), 403
+            
+            # Si es admin, buscar el usuario
+            user_encontrado = buscar_usuario_por_nombre(nombre_detectado)
+            if user_encontrado:
+                user_id_a_consultar = user_encontrado
+                print(f"📌 Se consultará por usuario: {user_encontrado}")
+            else:
+                return jsonify({
+                    "respuesta": f"❌ Usuario '{nombre_detectado}' no encontrado en la BD."
+                }), 404
 
         # ========================================
         # BUSCAR PREGUNTA SIMILAR EN FAQ
         # ========================================
         pregunta_similar, query_sql, similitud = buscar_pregunta_similar(mensaje)
+        
+        query_generada_dinamicamente = False
 
         if query_sql is None:
-            return jsonify({
-                "respuesta": "No conseguí una respuesta cercana a tu consulta. Intenta reformular. 🤔",
-                "debug": {"similitud_max": float(similitud)}
-            })
+            # Si similitud es muy baja, intentar generar con Ollama
+            print(f"⚠️ Similitud insuficiente ({similitud:.2f}). Intentando generar query...")
+            
+            query_sql = generar_query_con_ollama(mensaje, tipo_usuario)
+            
+            if query_sql is None:
+                return jsonify({
+                    "respuesta": "❌ No conseguí una respuesta cercana a tu consulta y tampoco pude generar una query. Intenta reformular. 🤔",
+                    "debug": {"similitud_max": float(similitud)}
+                })
+            
+            pregunta_similar = mensaje
+            query_generada_dinamicamente = True
+            print(f"🆕 Query generada dinámicamente por IA")
 
         # ========================================
         # VALIDAR PERMISOS (CLIENTE vs ADMIN)
         # ========================================
         tipo_pregunta = "CLIENTE"  # Default
-        if faq_data is not None and 'Tipo' in faq_data.columns:
+        if faq_data is not None and 'Tipo' in faq_data.columns and not query_generada_dinamicamente:
             # Buscar índice de la pregunta similar
             for idx, row in faq_data.iterrows():
                 if row['Pregunta Frecuente'].lower() == pregunta_similar.lower():
                     tipo_pregunta = row['Tipo']
                     break
         
-        print(f"🔐 Tipo de pregunta: {tipo_pregunta}")
+        # Si fue generada por IA, determinar tipo según contenido
+        if query_generada_dinamicamente:
+            # Si pregunta por otro usuario y se llegó aquí, es admin
+            if user_id_a_consultar != user_id:
+                tipo_pregunta = "ADMIN"
+            else:
+                tipo_pregunta = "CLIENTE"
         
-        # Si es pregunta ADMIN, verificar que el usuario sea admin
-        if tipo_pregunta == "ADMIN":
-            rol_usuario = obtener_rol_usuario(user_id)
-            print(f"👨‍💼 Rol del usuario: {rol_usuario}")
-            
-            if rol_usuario != "ADMIN":
-                return jsonify({
-                    "respuesta": "❌Su consuSolo administradores pueden consultar datos administrativos.",
-                    "pregunta_interpretada": pregunta_similar,
-                    "tipo": tipo_pregunta
-                }), 403
+        print(f"🔐 Tipo de pregunta: {tipo_pregunta}")
 
         # ========================================
         # EJECUTAR QUERY SQL
         # ========================================
-        rows, error = ejecutar_query_faq(query_sql, user_id)
+        rows, error = ejecutar_query_faq(query_sql, user_id_a_consultar)
 
         if error:
             return jsonify({
-                "respuesta": f"Error al consultar: {error}",
+                "respuesta": f"❌ Error al consultar: {error}",
                 "pregunta_interpretada": pregunta_similar
             }), 500
 
         if not rows:
             return jsonify({
-                "respuesta": "No hay datos para mostrar.",
-                "pregunta_interpretada": pregunta_similar
+                "respuesta": "ℹ️ No hay datos para mostrar.",
+                "pregunta_interpretada": pregunta_similar,
+                "tipo_consulta": tipo_pregunta
             })
 
         # ========================================
         # FORMATEAR RESPUESTA
         # ========================================
         resultado_formateado = formatear_resultado(rows, None)
+        
+        # ========================================
+        # GUARDAR QUERY GENERADA EN FAQ
+        # ========================================
+        if query_generada_dinamicamente:
+            guardar_pregunta_nueva_al_faq(pregunta_similar, query_sql, tipo_pregunta)
 
         return jsonify({
             "respuesta": resultado_formateado,
             "pregunta_interpretada": pregunta_similar,
-            "similitud": float(similitud),
-            "tipo_consulta": tipo_pregunta
+            "similitud": float(similitud) if not query_generada_dinamicamente else 1.0,
+            "tipo_consulta": tipo_pregunta,
+            "generada_dinamicamente": query_generada_dinamicamente
         })
 
     except Exception as e:

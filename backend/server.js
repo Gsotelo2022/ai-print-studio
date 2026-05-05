@@ -5,7 +5,10 @@ const path = require('path')
 const { generarImagen } = require('./generateImage')
 
 const app = express()
-app.use(cors())
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',').map(o => o.trim())
+app.use(cors({
+  origin: allowedOrigins
+}))
 app.use(express.json())
 
 app.post('/generar-imagen', async (req, res) => {

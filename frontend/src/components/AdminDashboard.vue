@@ -120,6 +120,9 @@
         <component v-else :is="currentViewComponent" />
       </div>
     </main>
+    
+    <!-- ChatBot en Admin -->
+    <ChatBot />
   </div>
 </template>
 
@@ -132,6 +135,7 @@ import GestionProductos from './GestionProductos.vue'
 import GestionClientes from './GestionClientes.vue'
 import GestionCupones from './GestionCupones.vue'
 import ConfiguracionView from './ConfiguracionView.vue'
+import ChatBot from './ChatBot.vue'
 
 const emit = defineEmits(['logout'])
 const { post } = useApi()

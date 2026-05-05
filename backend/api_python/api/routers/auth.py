@@ -86,10 +86,11 @@ def register(payload: RegisterIn):
     except HTTPException:
         raise
     except Exception as e:
-        print("ERROR REGISTER:", str(e))  # 🔥 debug útil
+        import logging
+        logging.error(f"Error registrando usuario: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail={"success": False, "error": str(e)}
+            detail={"success": False, "error": "Error interno del servidor"}
         )
 
 
@@ -156,8 +157,9 @@ def login(payload: LoginIn):
     except HTTPException:
         raise
     except Exception as e:
-        print("ERROR LOGIN:", str(e))  # 🔥 clave para debug
+        import logging
+        logging.error(f"Error en login: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail={"success": False, "error": str(e)}
+            detail={"success": False, "error": "Error interno del servidor"}
         )

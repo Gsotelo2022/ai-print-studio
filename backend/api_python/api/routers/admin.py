@@ -15,7 +15,7 @@ Rutas:
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 import requests
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
@@ -32,11 +32,11 @@ router = APIRouter(prefix="/api", tags=["admin"])
 # ============================================================
 
 class UpdateOrderStatusIn(BaseModel):
-    estado: str
+    estado: Literal["pendiente", "en_proceso", "listo", "entregado", "cancelado"]
 
 
 class UpdatePaymentStatusIn(BaseModel):
-    estado_pago: str
+    estado_pago: Literal["pendiente", "aprobado", "rechazado", "reembolsado"]
     metodo_pago: Optional[str] = None
     referencia_externa: Optional[str] = None
 
